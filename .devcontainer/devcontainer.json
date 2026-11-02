@@ -1,0 +1,23 @@
+{
+  "name": "IINK development",
+  "image": "mcr.microsoft.com/devcontainers/universal:2",
+  "hostRequirements": {
+    "cpus": 2,
+    "memory": "8gb",
+    "storage": "32gb"
+  },
+  "portsAttributes": {
+    "9944": {
+      "label": "IINK development RPC",
+      "onAutoForward": "ignore"
+    }
+  },
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "files.watcherExclude": { "**/target/**": true },
+        "search.exclude": { "**/target": true }
+      }
+    }
+  }
+}

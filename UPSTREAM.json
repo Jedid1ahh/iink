@@ -1,0 +1,10 @@
+{
+  "repository": "https://github.com/paritytech/polkadot-sdk-solochain-template",
+  "commit": "2610f22b838f65bfeec9791ede17827b74e1ac50",
+  "commit_date": "2025-05-12",
+  "sdk_line": "stable2503",
+  "status": "evaluation-only; not audited or compiled in this session",
+  "rust_candidate": "1.84.1",
+  "rust_basis": "https://github.com/paritytech/polkadot-sdk/blob/stable2503/.github/env",
+  "note": "Template HEAD is an older baseline. Assess supported SDK/Frontier versions and security advisories before selecting a production baseline. Cargo.lock is preserved."
+}

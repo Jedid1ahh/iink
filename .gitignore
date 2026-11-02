@@ -1,0 +1,7 @@
+target/
+.iink-data/
+artifacts/
+.env
+.env.*
+!.env.example
+__pycache__/
