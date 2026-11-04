@@ -8,14 +8,19 @@ from substrateinterface.exceptions import SubstrateRequestException
 AMOUNT = 10**12  # 1 IINK
 
 
-def expect_rejection(node, transaction, label, reason):
+def expect_rejection(node, transaction, label, reason, *, allow_duplicate=False):
     try:
         node.submit_extrinsic(transaction)
     except SubstrateRequestException as error:
-        if reason not in str(error).lower():
-            raise RuntimeError(f"{label} was rejected for an unexpected reason: {error}") from error
-        print(f"PASS: {label} rejected.")
-        return
+        details = error.args[0] if error.args else None
+        if isinstance(details, dict):
+            code = details.get("code")
+            if code == 1010 and details.get("data") == reason:
+                return
+            # The pool can reject an identical hash before validating its nonce.
+            if allow_duplicate and code in (1012, 1013):
+                return
+        raise RuntimeError(f"{label} was rejected for an unexpected reason: {error}") from error
     raise RuntimeError(f"{label} was accepted.")
 
 
@@ -62,7 +67,8 @@ def main():
     forged = alice_node.create_signed_extrinsic(
         call=call, keypair=alice, nonce=nonce, signature=bytes(64),
     )
-    expect_rejection(alice_node, forged, "Invalid signature", "bad signature")
+    expect_rejection(alice_node, forged, "Invalid signature", "Transaction has a bad signature")
+    print("PASS: Invalid signature rejected.")
 
     signed = alice_node.create_signed_extrinsic(call=call, keypair=alice, nonce=nonce)
     receipt = alice_node.submit_extrinsic(signed, wait_for_finalization=True)
@@ -83,7 +89,17 @@ def main():
             f"Payment accounting mismatch (Alice, Bob, supply). Expected {expected}, got {actual}."
         )
     print(f"PASS: Bob received 1 IINK. Alice paid {fee} base units, which were burned.")
-    expect_rejection(alice_node, signed, "Replay", "outdated")
+    expect_rejection(
+        alice_node, signed, "Duplicate transaction", "Transaction is outdated", allow_duplicate=True,
+    )
+    # Change the amount to test the used nonce without hitting the same pool hash.
+    stale_call = alice_node.compose_call("Balances", "transfer_keep_alive", {
+        "dest": bob.ss58_address,
+        "value": 2 * AMOUNT,
+    })
+    stale = alice_node.create_signed_extrinsic(call=stale_call, keypair=alice, nonce=nonce)
+    expect_rejection(alice_node, stale, "Used nonce", "Transaction is outdated")
+    print("PASS: Duplicate submission and a new transaction using the same nonce were rejected.")
 
     wait_for_peer(bob_node, block, height)
     if snapshot(bob_node, block, accounts) != actual:
