@@ -84,6 +84,23 @@ Stop any nodes using ports 9944 or 9945 with **Ctrl+C** in their terminals. Use 
 
 In Codespaces the launch script uses `/workspaces/iink-local-alice` and `/workspaces/iink-local-bob`. It creates a network key only if that validator's key is missing. Use the same launch commands after a restart to keep each node's key and database. The check uses system Python. After starting both nodes, a `Pre-sealed block` line in each terminal shows that both are authoring blocks.
 
+## Check a payment on both validators
+
+Keep Alice and Bob running. Set up the Python client once from **Terminal 3**. The environment is stored under `/workspaces` so it can be reused.
+
+```bash
+python3 -m venv /workspaces/iink-payment-test &&
+/workspaces/iink-payment-test/bin/python -m pip install substrate-interface==1.8.1
+```
+
+If Python reports that `ensurepip` is missing, install `python3.12-venv` in the Codespace and repeat the setup. Then run:
+
+```bash
+/workspaces/iink-payment-test/bin/python scripts/check-local-payment.py
+```
+
+Each run sends one test IINK from Alice to Bob on the local testnet. Run it while no other transactions are being submitted so the script can reconcile the exact balance and supply changes. It checks invalid signature and replay rejection, the burned fee, and agreement on the finalized payment across both nodes.
+
 ## Next evidence required
 
 1. Successful node and Wasm build with recorded resource consumption.
