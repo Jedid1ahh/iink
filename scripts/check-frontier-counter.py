@@ -7,6 +7,7 @@ import time
 from pathlib import Path
 
 from eth_account import Account
+from eth_utils import to_checksum_address
 
 from check_rpc import rpc
 
@@ -45,7 +46,7 @@ def send(account, data, gas, to=None):
         "data": data,
     }
     if to is not None:
-        transaction["to"] = to
+        transaction["to"] = to_checksum_address(to)
     signed = account.sign_transaction(transaction)
     tx_hash = eth("eth_sendRawTransaction", ["0x" + bytes(signed.raw_transaction).hex()])
     print(f"Submitted {tx_hash}. Waiting for finality...", flush=True)
