@@ -8,7 +8,7 @@ This starter adapts the official Polkadot SDK standalone template. It is source 
 
 - Upstream node/runtime and development pallets, with the original dependency lockfile.
 - IINK development/local network names, distinct protocol identifiers, and test-token display metadata.
-- A browser development-container configuration, with no automatic build or dependency installation.
+- An Ubuntu 24.04 development image that installs the pinned Rust toolchain and native build dependencies automatically; blockchain compilation is started manually.
 - Build preflight, resource logging, local development launch, and RPC/finality smoke-check scripts.
 - Source provenance in `UPSTREAM.json` and the current project brief in `docs/PROJECT_SCOPE.md`.
 
@@ -18,25 +18,41 @@ Upstream crate and binary names remain unchanged to keep the initial patch small
 
 1. Open https://github.com/Jedid1ahh/iink and check your Codespaces usage and billing controls. Stay within your free quota and do not enable paid overages.
 2. Select **Code → Codespaces → Create codespace on main**. Source files are already in the repository; no ZIP upload is needed.
-3. Wait for the development environment to open. The configuration does not automatically install Rust dependencies, compile the chain, or open RPC ports.
+3. Wait for the development image to install its dependencies and open. The creation log must finish successfully. The post-create check prints Rust and Protobuf versions. Blockchain compilation is started manually.
 4. Use the terminal inside Codespaces for the commands below. The development container requests at least two cores, 8 GB RAM, and 32 GB disk; these are starting resource requests, not a guarantee that the build will fit.
 
 Codespaces account eligibility, remaining quota, and billing controls have not been verified. No Codespace has been created by this repository setup.
 
-## Prepare the remote Linux environment
+## Prepare or repair the Codespaces environment
 
-Run these in the remote Linux development terminal:
+The image installs `rustup`, `cargo`, `rustc`, the Wasm target, `rust-src`, Clippy, rustfmt, and native packages including `protobuf-compiler`. Rust's version and component list are read from `rust-toolchain.toml`. There is no separate Yarn package repository to repair in this image.
+
+If your existing Codespace reports missing Rust tools or an unrelated Yarn signing-key error:
+
+1. Save files in `/workspaces/iink`. A rebuild preserves `/workspaces`, but other container-local installations and files can be lost; copy any files you need from elsewhere into the workspace first.
+2. Run `git pull --ff-only origin main`. If Git reports local changes or a conflict, preserve those changes and resolve it before rebuilding; do not use a hard reset.
+3. Press **Ctrl+Shift+P**, select **Codespaces: Rebuild Container**, then select **Full Rebuild**. This clears old image caches and applies the repository's new Dockerfile. Do not delete the Codespace.
+4. Wait for setup to finish, then run:
 
 ```bash
-sudo apt-get update
-sudo apt-get install -y build-essential clang libclang-dev pkg-config libssl-dev protobuf-compiler cmake
-rustup toolchain install 1.84.1 --profile minimal --component rust-src --component rustfmt --component clippy --target wasm32-unknown-unknown
+rustc --version
+cargo --version
+protoc --version
 bash scripts/preflight.sh
 ```
 
-If `rustup` is unavailable, follow the official Rust installer at https://www.rust-lang.org/tools/install inside the remote environment, then retry. The pinned version is an **evaluation candidate** based on the stable2503 SDK CI environment. It has not been validated against this complete scaffold. Do not silently update the lockfile or toolchain to bypass an error; retain the error and investigate.
+Full rebuild behavior and persistence are documented at https://docs.github.com/en/codespaces/developing-in-a-codespace/rebuilding-the-container-in-a-codespace . Setup consumes Codespaces time and storage from the account's allowance. Check remaining quota; this change does not select a paid machine or enable overages.
 
-The preflight thresholds are conservative experiment checks, not validated hardware specifications. A pass does not guarantee a successful build or sufficient monthly quota. The container image uses a version tag, not an immutable digest; this is not yet a fully reproducible environment.
+If creation fails, share the first error from the creation log. If the 20 GiB disk policy still blocks the build after a full rebuild, collect these read-only measurements:
+
+```bash
+df -h /workspaces/iink
+du -xhd1 /workspaces "$HOME/.cargo" "$HOME/.rustup" /var/cache/apt 2>/dev/null | sort -h
+```
+
+Do not assume that removing the preflight check would make the build fit. The disk and memory thresholds are experiment policies, not validated hardware requirements. Actual free space must be measured after rebuilding.
+
+The Rust version remains an evaluation candidate from stable2503 SDK CI; node compilation has not yet been validated. The base image uses the Ubuntu `noble` tag rather than an immutable digest, so this is not yet a fully reproducible environment.
 
 ## Build and inspect
 

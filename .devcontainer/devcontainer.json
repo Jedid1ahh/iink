@@ -1,6 +1,11 @@
 {
   "name": "IINK development",
-  "image": "mcr.microsoft.com/devcontainers/universal:2",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "context": ".."
+  },
+  "remoteUser": "vscode",
+  "postCreateCommand": "rustup --version && rustc --version && cargo --version && protoc --version",
   "hostRequirements": {
     "cpus": 2,
     "memory": "8gb",
