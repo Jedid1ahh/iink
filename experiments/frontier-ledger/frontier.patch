@@ -1,0 +1,589 @@
+diff --git a/template/node/Cargo.toml b/template/node/Cargo.toml
+index 5226f4f..35356ae 100644
+--- a/template/node/Cargo.toml
++++ b/template/node/Cargo.toml
+@@ -9,6 +9,10 @@ authors = { workspace = true }
+ edition = { workspace = true }
+ repository = { workspace = true }
+ 
++[[bin]]
++name = "iink-frontier-ledger-node"
++path = "src/main.rs"
++
+ [package.metadata.docs.rs]
+ targets = ["x86_64-unknown-linux-gnu"]
+ 
+diff --git a/template/node/src/benchmarking.rs b/template/node/src/benchmarking.rs
+index 2045a8f..6086e83 100644
+--- a/template/node/src/benchmarking.rs
++++ b/template/node/src/benchmarking.rs
+@@ -7,11 +7,12 @@ use scale_codec::Encode;
+ // Substrate
+ use sc_cli::Result;
+ use sc_client_api::BlockBackend;
+-use sp_core::{ecdsa, Pair};
++use sp_core::{sr25519, Pair};
+ use sp_inherents::{InherentData, InherentDataProvider};
+-use sp_runtime::{generic::Era, OpaqueExtrinsic, SaturatedConversion};
++use sp_runtime::{
++	generic::Era, traits::IdentifyAccount, MultiSigner, OpaqueExtrinsic, SaturatedConversion,
++};
+ // Frontier
+-use fp_account::AccountId20;
+ use frontier_template_runtime::{self as runtime, AccountId, Balance, BalancesCall, SystemCall};
+ 
+ use crate::service::Client;
+@@ -40,7 +41,7 @@ impl frame_benchmarking_cli::ExtrinsicBuilder for RemarkBuilder {
+ 	}
+ 
+ 	fn build(&self, nonce: u32) -> std::result::Result<OpaqueExtrinsic, &'static str> {
+-		let acc = ecdsa::Pair::from_string("//Bob", None).expect("static values are valid; qed");
++		let acc = sr25519::Pair::from_string("//Bob", None).expect("static values are valid; qed");
+ 		let extrinsic: OpaqueExtrinsic = create_benchmark_extrinsic(
+ 			self.client.as_ref(),
+ 			acc,
+@@ -83,12 +84,12 @@ impl frame_benchmarking_cli::ExtrinsicBuilder for TransferKeepAliveBuilder {
+ 	}
+ 
+ 	fn build(&self, nonce: u32) -> std::result::Result<OpaqueExtrinsic, &'static str> {
+-		let acc = ecdsa::Pair::from_string("//Bob", None).expect("static values are valid; qed");
++		let acc = sr25519::Pair::from_string("//Bob", None).expect("static values are valid; qed");
+ 		let extrinsic: OpaqueExtrinsic = create_benchmark_extrinsic(
+ 			self.client.as_ref(),
+ 			acc,
+ 			BalancesCall::transfer_keep_alive {
+-				dest: self.dest,
++				dest: self.dest.clone().into(),
+ 				value: self.value,
+ 			}
+ 			.into(),
+@@ -105,7 +106,7 @@ impl frame_benchmarking_cli::ExtrinsicBuilder for TransferKeepAliveBuilder {
+ /// Note: Should only be used for benchmarking.
+ pub fn create_benchmark_extrinsic(
+ 	client: &Client,
+-	sender: ecdsa::Pair,
++	sender: sr25519::Pair,
+ 	call: runtime::RuntimeCall,
+ 	nonce: u32,
+ ) -> runtime::UncheckedExtrinsic {
+@@ -153,8 +154,8 @@ pub fn create_benchmark_extrinsic(
+ 
+ 	runtime::UncheckedExtrinsic::new_signed(
+ 		call,
+-		AccountId20::from(sender.public()),
+-		runtime::Signature::new(signature),
++		MultiSigner::from(sender.public()).into_account().into(),
++		signature.into(),
+ 		extra,
+ 	)
+ }
+diff --git a/template/node/src/chain_spec.rs b/template/node/src/chain_spec.rs
+index 3360fc9..dabc9a9 100644
+--- a/template/node/src/chain_spec.rs
++++ b/template/node/src/chain_spec.rs
+@@ -1,36 +1,24 @@
+-use std::{collections::BTreeMap, str::FromStr};
+-
+-use hex_literal::hex;
+ // Substrate
+ use sc_chain_spec::{ChainType, Properties};
+ use sp_consensus_aura::sr25519::AuthorityId as AuraId;
+ use sp_consensus_grandpa::AuthorityId as GrandpaId;
+-#[allow(unused_imports)]
+-use sp_core::ecdsa;
+-use sp_core::{Pair, Public, H160, U256};
++use sp_core::{sr25519, Pair, Public};
+ use sp_runtime::traits::{IdentifyAccount, Verify};
+-// Frontier
+-use frontier_template_runtime::{AccountId, Balance, SS58Prefix, Signature, WASM_BINARY};
+ 
+-// The URL for the telemetry server.
+-// const STAGING_TELEMETRY_URL: &str = "wss://telemetry.polkadot.io/submit/";
++use frontier_template_runtime::{
++	AccountId, SS58Prefix, Signature, DEVELOPMENT_EVM_CHAIN_ID, UNIT, WASM_BINARY,
++};
+ 
+-/// Specialized `ChainSpec`. This is a specialization of the general Substrate ChainSpec type.
+ pub type ChainSpec = sc_service::GenericChainSpec;
+ 
+-/// Generate a crypto pair from seed.
+-pub fn get_from_seed<TPublic: Public>(seed: &str) -> <TPublic::Pair as Pair>::Public {
++fn get_from_seed<TPublic: Public>(seed: &str) -> <TPublic::Pair as Pair>::Public {
+ 	TPublic::Pair::from_string(&format!("//{seed}"), None)
+ 		.expect("static values are valid; qed")
+ 		.public()
+ }
+ 
+-#[allow(dead_code)]
+ type AccountPublic = <Signature as Verify>::Signer;
+ 
+-/// Generate an account ID from seed.
+-/// For use with `AccountId32`, `dead_code` if `AccountId20`.
+-#[allow(dead_code)]
+ pub fn get_account_id_from_seed<TPublic: Public>(seed: &str) -> AccountId
+ where
+ 	AccountPublic: From<<TPublic::Pair as Pair>::Public>,
+@@ -38,43 +26,29 @@ where
+ 	AccountPublic::from(get_from_seed::<TPublic>(seed)).into_account()
+ }
+ 
+-/// Generate an Aura authority key.
+-pub fn authority_keys_from_seed(s: &str) -> (AuraId, GrandpaId) {
+-	(get_from_seed::<AuraId>(s), get_from_seed::<GrandpaId>(s))
++fn authority_keys_from_seed(seed: &str) -> (AuraId, GrandpaId) {
++	(
++		get_from_seed::<AuraId>(seed),
++		get_from_seed::<GrandpaId>(seed),
++	)
+ }
+ 
+ fn properties() -> Properties {
+ 	let mut properties = Properties::new();
+-	properties.insert("tokenDecimals".into(), 18.into());
++	properties.insert("tokenSymbol".into(), "IINK".into());
++	properties.insert("tokenDecimals".into(), 12.into());
+ 	properties.insert("ss58Format".into(), SS58Prefix::get().into());
+-	properties.insert("isEthereum".into(), true.into());
+ 	properties
+ }
+ 
+-const UNITS: Balance = 1_000_000_000_000_000_000;
+-
+ pub fn development_config(enable_manual_seal: bool) -> ChainSpec {
+ 	ChainSpec::builder(WASM_BINARY.expect("WASM not available"), Default::default())
+-		.with_name("Development")
+-		.with_id("dev")
++		.with_name("IINK Shared Ledger Lab")
++		.with_id("iink_ledger_dev")
+ 		.with_chain_type(ChainType::Development)
+ 		.with_properties(properties())
+ 		.with_genesis_config_patch(testnet_genesis(
+-			// Sudo account (Alith)
+-			AccountId::from(hex!("f24FF3a9CF04c71Dbc94D0b566f7A27B94566cac")),
+-			// Pre-funded accounts
+-			vec![
+-				AccountId::from(hex!("f24FF3a9CF04c71Dbc94D0b566f7A27B94566cac")), // Alith
+-				AccountId::from(hex!("3Cd0A705a2DC65e5b1E1205896BaA2be8A07c6e0")), // Baltathar
+-				AccountId::from(hex!("798d4Ba9baf0064Ec19eB4F0a1a45785ae9D6DFc")), // Charleth
+-				AccountId::from(hex!("773539d4Ac0e786233D90A233654ccEE26a613D9")), // Dorothy
+-				AccountId::from(hex!("Ff64d3F6efE2317EE2807d223a0Bdc4c0c49dfDB")), // Ethan
+-				AccountId::from(hex!("C0F0f4ab324C46e55D02D0033343B4Be8A55532d")), // Faith
+-			],
+-			// Initial PoA authorities
+ 			vec![authority_keys_from_seed("Alice")],
+-			// Ethereum chain ID
+-			SS58Prefix::get() as u64,
+ 			enable_manual_seal,
+ 		))
+ 		.build()
+@@ -82,97 +56,32 @@ pub fn development_config(enable_manual_seal: bool) -> ChainSpec {
+ 
+ pub fn local_testnet_config() -> ChainSpec {
+ 	ChainSpec::builder(WASM_BINARY.expect("WASM not available"), Default::default())
+-		.with_name("Local Testnet")
+-		.with_id("local_testnet")
++		.with_name("IINK Shared Ledger Local")
++		.with_id("iink_ledger_local")
+ 		.with_chain_type(ChainType::Local)
+ 		.with_properties(properties())
+ 		.with_genesis_config_patch(testnet_genesis(
+-			// Sudo account (Alith)
+-			AccountId::from(hex!("f24FF3a9CF04c71Dbc94D0b566f7A27B94566cac")),
+-			// Pre-funded accounts
+-			vec![
+-				AccountId::from(hex!("f24FF3a9CF04c71Dbc94D0b566f7A27B94566cac")), // Alith
+-				AccountId::from(hex!("3Cd0A705a2DC65e5b1E1205896BaA2be8A07c6e0")), // Baltathar
+-				AccountId::from(hex!("798d4Ba9baf0064Ec19eB4F0a1a45785ae9D6DFc")), // Charleth
+-				AccountId::from(hex!("773539d4Ac0e786233D90A233654ccEE26a613D9")), // Dorothy
+-				AccountId::from(hex!("Ff64d3F6efE2317EE2807d223a0Bdc4c0c49dfDB")), // Ethan
+-				AccountId::from(hex!("C0F0f4ab324C46e55D02D0033343B4Be8A55532d")), // Faith
+-			],
+ 			vec![
+ 				authority_keys_from_seed("Alice"),
+ 				authority_keys_from_seed("Bob"),
+ 			],
+-			42,
+ 			false,
+ 		))
+ 		.build()
+ }
+ 
+-/// Configure initial storage state for FRAME modules.
+ fn testnet_genesis(
+-	sudo_key: AccountId,
+-	endowed_accounts: Vec<AccountId>,
+ 	initial_authorities: Vec<(AuraId, GrandpaId)>,
+-	chain_id: u64,
+ 	enable_manual_seal: bool,
+ ) -> serde_json::Value {
+-	let evm_accounts = {
+-		let mut map = BTreeMap::new();
+-		map.insert(
+-			// H160 address of Alice dev account
+-			// Derived from SS58 (42 prefix) address
+-			// SS58: 5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY
+-			// hex: 0xd43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d
+-			// Using the full hex key, truncating to the first 20 bytes (the first 40 hex chars)
+-			H160::from_str("d43593c715fdd31c61141abd04a99fd6822c8558")
+-				.expect("internal H160 is valid; qed"),
+-			fp_evm::GenesisAccount {
+-				balance: U256::from_str("0xffffffffffffffffffffffffffffffff")
+-					.expect("internal U256 is valid; qed"),
+-				code: Default::default(),
+-				nonce: Default::default(),
+-				storage: Default::default(),
+-			},
+-		);
+-		map.insert(
+-			// H160 address of CI test runner account
+-			H160::from_str("6be02d1d3665660d22ff9624b7be0551ee1ac91b")
+-				.expect("internal H160 is valid; qed"),
+-			fp_evm::GenesisAccount {
+-				balance: U256::from_str("0xffffffffffffffffffffffffffffffff")
+-					.expect("internal U256 is valid; qed"),
+-				code: Default::default(),
+-				nonce: Default::default(),
+-				storage: Default::default(),
+-			},
+-		);
+-		map.insert(
+-			// H160 address for benchmark usage
+-			H160::from_str("1000000000000000000000000000000000000001")
+-				.expect("internal H160 is valid; qed"),
+-			fp_evm::GenesisAccount {
+-				nonce: U256::from(1),
+-				balance: U256::from(1_000_000_000_000_000_000_000_000u128),
+-				storage: Default::default(),
+-				code: vec![0x00],
+-			},
+-		);
+-		map
+-	};
+-
++	let alice = get_account_id_from_seed::<sr25519::Public>("Alice");
++	let bob = get_account_id_from_seed::<sr25519::Public>("Bob");
+ 	serde_json::json!({
+-		"sudo": { "key": Some(sudo_key) },
+-		"balances": {
+-			"balances": endowed_accounts
+-				.iter()
+-				.cloned()
+-				.map(|k| (k, 1_000_000 * UNITS))
+-				.collect::<Vec<_>>()
+-		},
+-		"aura": { "authorities": initial_authorities.iter().map(|x| (x.0.clone())).collect::<Vec<_>>() },
++		"sudo": { "key": alice.clone() },
++		"balances": { "balances": [(alice, 1_000_000 * UNIT), (bob, 1_000_000 * UNIT)] },
++		"aura": { "authorities": initial_authorities.iter().map(|x| x.0.clone()).collect::<Vec<_>>() },
+ 		"grandpa": { "authorities": initial_authorities.iter().map(|x| (x.1.clone(), 1)).collect::<Vec<_>>() },
+-		"evmChainId": { "chainId": chain_id },
+-		"evm": { "accounts": evm_accounts },
++		"evmChainId": { "chainId": DEVELOPMENT_EVM_CHAIN_ID },
+ 		"manualSeal": { "enable": enable_manual_seal }
+ 	})
+ }
+diff --git a/template/node/src/command.rs b/template/node/src/command.rs
+index c2d4b81..30bcca6 100644
+--- a/template/node/src/command.rs
++++ b/template/node/src/command.rs
+@@ -197,7 +197,7 @@ pub fn run() -> sc_cli::Result<()> {
+ 						Box::new(RemarkBuilder::new(client.clone())),
+ 						Box::new(TransferKeepAliveBuilder::new(
+ 							client.clone(),
+-							get_account_id_from_seed::<sp_core::ecdsa::Public>("Alice"),
++							get_account_id_from_seed::<sp_core::sr25519::Public>("Alice"),
+ 							EXISTENTIAL_DEPOSIT,
+ 						)),
+ 					]);
+diff --git a/template/node/src/rpc/mod.rs b/template/node/src/rpc/mod.rs
+index 8ac754f..d3f8b4d 100644
+--- a/template/node/src/rpc/mod.rs
++++ b/template/node/src/rpc/mod.rs
+@@ -46,7 +46,7 @@ where
+ {
+ 	type EstimateGasAdapter = ();
+ 	type RuntimeStorageOverride =
+-		fc_rpc::frontier_backend_client::SystemAccountId20StorageOverride<B, C, BE>;
++		fc_rpc::frontier_backend_client::SystemAccountId32StorageOverride<B, C, BE>;
+ }
+ 
+ /// Instantiate all Full RPC extensions.
+diff --git a/template/runtime/Cargo.toml b/template/runtime/Cargo.toml
+index be3b485..9a5fe1b 100644
+--- a/template/runtime/Cargo.toml
++++ b/template/runtime/Cargo.toml
+@@ -42,7 +42,7 @@ frame-system = { workspace = true }
+ frame-system-benchmarking = { workspace = true, optional = true }
+ frame-system-rpc-runtime-api = { workspace = true }
+ pallet-aura = { workspace = true }
+-pallet-balances = { workspace = true, features = ["insecure_zero_ed"] }
++pallet-balances = { workspace = true }
+ pallet-grandpa = { workspace = true }
+ pallet-sudo = { workspace = true }
+ pallet-timestamp = { workspace = true }
+diff --git a/template/runtime/src/genesis_config_preset.rs b/template/runtime/src/genesis_config_preset.rs
+index b7597cd..9e00add 100644
+--- a/template/runtime/src/genesis_config_preset.rs
++++ b/template/runtime/src/genesis_config_preset.rs
+@@ -1,126 +1,36 @@
+ use crate::{
+-	AccountId, BalancesConfig, EVMChainIdConfig, EVMConfig, EthereumConfig, ManualSealConfig,
+-	RuntimeGenesisConfig, SudoConfig,
++	AccountId, BalancesConfig, EVMChainIdConfig, RuntimeGenesisConfig, SudoConfig,
++	DEVELOPMENT_EVM_CHAIN_ID, UNIT,
+ };
+ use hex_literal::hex;
+-use sp_consensus_aura::sr25519::AuthorityId as AuraId;
+-use sp_consensus_grandpa::AuthorityId as GrandpaId;
+-#[allow(unused_imports)]
+-use sp_core::ecdsa;
+-use sp_core::{H160, U256};
+ use sp_genesis_builder::PresetId;
+ use sp_std::prelude::*;
+ 
+-/// Generate a chain spec for use with the development service.
++/// Native Alice is the sole funded account in the runtime's development preset.
+ pub fn development() -> serde_json::Value {
+-	testnet_genesis(
+-		// Sudo account (Alith)
+-		AccountId::from(hex!("f24FF3a9CF04c71Dbc94D0b566f7A27B94566cac")),
+-		// Pre-funded accounts
+-		vec![
+-			AccountId::from(hex!("f24FF3a9CF04c71Dbc94D0b566f7A27B94566cac")), // Alith
+-			AccountId::from(hex!("3Cd0A705a2DC65e5b1E1205896BaA2be8A07c6e0")), // Baltathar
+-			AccountId::from(hex!("798d4Ba9baf0064Ec19eB4F0a1a45785ae9D6DFc")), // Charleth
+-		],
+-		vec![],
+-		42,    // chain id
+-		false, // disable manual seal
+-	)
+-}
+-
+-/// Configure initial storage state for FRAME modules.
+-fn testnet_genesis(
+-	sudo_key: AccountId,
+-	endowed_accounts: Vec<AccountId>,
+-	_initial_authorities: Vec<(AuraId, GrandpaId)>,
+-	chain_id: u64,
+-	enable_manual_seal: bool,
+-) -> serde_json::Value {
+-	let evm_accounts = {
+-		let mut map = sp_std::collections::btree_map::BTreeMap::new();
+-		map.insert(
+-			// H160 address of Alice dev account
+-			// Derived from SS58 (42 prefix) address
+-			// SS58: 5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY
+-			// hex: 0xd43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d
+-			// Using the full hex key, truncating to the first 20 bytes (the first 40 hex chars)
+-			H160::from(hex!("f24FF3a9CF04c71Dbc94D0b566f7A27B94566cac")),
+-			fp_evm::GenesisAccount {
+-				balance: U256::MAX,
+-				code: Default::default(),
+-				nonce: Default::default(),
+-				storage: Default::default(),
+-			},
+-		);
+-		map.insert(
+-			// H160 address of CI test runner account
+-			H160::from(hex!("6be02d1d3665660d22ff9624b7be0551ee1ac91b")),
+-			fp_evm::GenesisAccount {
+-				balance: U256::MAX,
+-				code: Default::default(),
+-				nonce: Default::default(),
+-				storage: Default::default(),
+-			},
+-		);
+-		map.insert(
+-			// H160 address for benchmark usage
+-			H160::from(hex!("1000000000000000000000000000000000000001")),
+-			fp_evm::GenesisAccount {
+-				nonce: U256::from(1),
+-				balance: U256::from(1_000_000_000_000_000_000_000_000u128),
+-				storage: Default::default(),
+-				code: vec![0x00],
+-			},
+-		);
+-		map
+-	};
+-
++	let alice = AccountId::from(hex!(
++		"d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d"
++	));
+ 	let config = RuntimeGenesisConfig {
+-		system: Default::default(),
+-		aura: Default::default(),
+-		base_fee: Default::default(),
+-		grandpa: Default::default(),
+ 		balances: BalancesConfig {
+-			balances: endowed_accounts
+-				.iter()
+-				.cloned()
+-				.map(|k| (k, 1 << 110))
+-				.collect(),
+-			..Default::default()
+-		},
+-		ethereum: EthereumConfig {
+-			..Default::default()
+-		},
+-		evm: EVMConfig {
+-			accounts: evm_accounts.into_iter().collect(),
++			balances: vec![(alice.clone(), 1_000_000 * UNIT)],
+ 			..Default::default()
+ 		},
+ 		evm_chain_id: EVMChainIdConfig {
+-			chain_id,
+-			..Default::default()
+-		},
+-		manual_seal: ManualSealConfig {
+-			enable: enable_manual_seal,
++			chain_id: DEVELOPMENT_EVM_CHAIN_ID,
+ 			..Default::default()
+ 		},
+-		sudo: SudoConfig {
+-			key: Some(sudo_key),
+-		},
+-		transaction_payment: Default::default(),
++		sudo: SudoConfig { key: Some(alice) },
++		..Default::default()
+ 	};
+-
+-	serde_json::to_value(&config).expect("Could not build genesis config.")
++	serde_json::to_value(config).expect("Could not build genesis config.")
+ }
+ 
+-/// Provides the JSON representation of predefined genesis config for given `id`.
+ pub fn get_preset(id: &PresetId) -> Option<Vec<u8>> {
+-	let patch = match id.as_str() {
+-		sp_genesis_builder::DEV_RUNTIME_PRESET => development(),
+-		_ => return None,
+-	};
+-	Some(
+-		serde_json::to_string(&patch)
+-			.expect("serialization to json is expected to work. qed.")
+-			.into_bytes(),
+-	)
++	match id.as_str() {
++		sp_genesis_builder::DEV_RUNTIME_PRESET => {
++			Some(serde_json::to_vec(&development()).expect("Could not serialize genesis config."))
++		}
++		_ => None,
++	}
+ }
+diff --git a/template/runtime/src/lib.rs b/template/runtime/src/lib.rs
+index 62be2a1..4d6e175 100644
+--- a/template/runtime/src/lib.rs
++++ b/template/runtime/src/lib.rs
+@@ -30,11 +30,12 @@ use sp_core::{
+ use sp_runtime::{
+ 	generic, impl_opaque_keys,
+ 	traits::{
+-		BlakeTwo256, Block as BlockT, DispatchInfoOf, Dispatchable, Get, IdentifyAccount,
+-		IdentityLookup, NumberFor, PostDispatchInfoOf, UniqueSaturatedInto, Verify,
++		AccountIdLookup, BlakeTwo256, Block as BlockT, DispatchInfoOf, Dispatchable, Get,
++		IdentifyAccount, NumberFor, PostDispatchInfoOf, UniqueSaturatedInto, Verify,
+ 	},
+ 	transaction_validity::{TransactionSource, TransactionValidity, TransactionValidityError},
+-	ApplyExtrinsicResult, ConsensusEngineId, ExtrinsicInclusionMode, Perbill, Permill,
++	ApplyExtrinsicResult, ConsensusEngineId, ExtrinsicInclusionMode, MultiAddress, MultiSignature,
++	Perbill, Permill,
+ };
+ use sp_version::RuntimeVersion;
+ // Substrate FRAME
+@@ -56,12 +57,12 @@ use pallet_transaction_payment::FungibleAdapter;
+ use polkadot_runtime_common::SlowAdjustingFeeUpdate;
+ use sp_genesis_builder::PresetId;
+ // Frontier
+-use fp_account::EthereumSignature;
+ use fp_evm::weight_per_gas;
+ use fp_rpc::TransactionStatus;
+ use pallet_ethereum::{Call::transact, PostLogContent, Transaction as EthereumTransaction};
+ use pallet_evm::{
+-	Account as EVMAccount, EnsureAccountId20, FeeCalculator, IdentityAddressMapping, Runner,
++	Account as EVMAccount, EVMFungibleAdapter, EnsureAddressNever, FeeCalculator,
++	HashedAddressMapping, Runner,
+ };
+ 
+ // A few exports that help ease life for downstream crates.
+@@ -74,8 +75,8 @@ use precompiles::FrontierPrecompiles;
+ /// Type of block number.
+ pub type BlockNumber = u32;
+ 
+-/// Alias to 512-bit hash when used in the context of a transaction signature on the chain.
+-pub type Signature = EthereumSignature;
++/// Native transactions keep IINK’s existing signature and account types.
++pub type Signature = MultiSignature;
+ 
+ /// Some way of identifying an account on the chain. We intentionally make it equivalent
+ /// to the public key of our transaction signing scheme.
+@@ -101,7 +102,7 @@ pub type Hashing = BlakeTwo256;
+ pub type DigestItem = generic::DigestItem;
+ 
+ /// The address format for describing accounts.
+-pub type Address = AccountId;
++pub type Address = MultiAddress<AccountId, ()>;
+ 
+ /// Block header type as expected by this runtime.
+ pub type Header = generic::Header<BlockNumber, BlakeTwo256>;
+@@ -183,8 +184,8 @@ pub mod opaque {
+ 
+ #[sp_version::runtime_version]
+ pub const VERSION: RuntimeVersion = RuntimeVersion {
+-	spec_name: Cow::Borrowed("frontier-template"),
+-	impl_name: Cow::Borrowed("frontier-template"),
++	spec_name: Cow::Borrowed("iink-ledger-lab"),
++	impl_name: Cow::Borrowed("iink-ledger-lab"),
+ 	authoring_version: 1,
+ 	spec_version: 1,
+ 	impl_version: 1,
+@@ -241,7 +242,7 @@ impl frame_system::Config for Runtime {
+ 	/// The identifier used to distinguish between accounts.
+ 	type AccountId = AccountId;
+ 	/// The lookup mechanism to get account ID from whatever is passed in dispatchers.
+-	type Lookup = IdentityLookup<AccountId>;
++	type Lookup = AccountIdLookup<AccountId, ()>;
+ 	/// The block type.
+ 	type Block = Block;
+ 	/// Maximum number of block number to block hash mappings to keep (oldest pruned first).
+@@ -300,7 +301,9 @@ impl pallet_timestamp::Config for Runtime {
+ 	type WeightInfo = ();
+ }
+ 
+-pub const EXISTENTIAL_DEPOSIT: u128 = 0;
++pub const UNIT: Balance = 1_000_000_000_000;
++pub const EXISTENTIAL_DEPOSIT: Balance = UNIT / 1_000;
++pub const DEVELOPMENT_EVM_CHAIN_ID: u64 = 31_337;
+ 
+ impl pallet_balances::Config for Runtime {
+ 	type RuntimeEvent = RuntimeEvent;
+@@ -374,9 +377,10 @@ impl pallet_evm::Config for Runtime {
+ 	type GasWeightMapping = pallet_evm::FixedGasWeightMapping<Self>;
+ 	type WeightPerGas = WeightPerGas;
+ 	type BlockHashMapping = pallet_ethereum::EthereumBlockHashMapping<Self>;
+-	type CallOrigin = EnsureAccountId20;
+-	type WithdrawOrigin = EnsureAccountId20;
+-	type AddressMapping = IdentityAddressMapping;
++	// Ethereum transactions authorize the mapped account with an Ethereum signature.
++	type CallOrigin = EnsureAddressNever<AccountId>;
++	type WithdrawOrigin = EnsureAddressNever<AccountId>;
++	type AddressMapping = HashedAddressMapping<BlakeTwo256>;
+ 	type Currency = Balances;
+ 	type PrecompilesType = FrontierPrecompiles<Self>;
+ 	type PrecompilesValue = PrecompilesValue;
+@@ -384,7 +388,7 @@ impl pallet_evm::Config for Runtime {
+ 	type BlockGasLimit = BlockGasLimit;
+ 	type TransactionGasLimit = TransactionGasLimit;
+ 	type Runner = pallet_evm::runner::stack::Runner<Self>;
+-	type OnChargeTransaction = ();
++	type OnChargeTransaction = EVMFungibleAdapter<Balances, ()>;
+ 	type OnCreate = ();
+ 	type FindAuthor = FindAuthorTruncated<Aura>;
+ 	type GasLimitPovSizeRatio = GasLimitPovSizeRatio;
+@@ -416,7 +420,7 @@ impl pallet_dynamic_fee::Config for Runtime {
+ }
+ 
+ parameter_types! {
+-	pub DefaultBaseFeePerGas: U256 = U256::from(1_000_000_000);
++	pub DefaultBaseFeePerGas: U256 = U256::from(1_000_000);
+ 	pub DefaultElasticity: Permill = Permill::from_parts(125_000);
+ }
+ pub struct BaseFeeThreshold;
