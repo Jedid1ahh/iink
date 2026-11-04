@@ -7,10 +7,10 @@ import urllib.request
 URL = "http://127.0.0.1:9944"
 
 
-def rpc(method, params=None):
+def rpc(method, params=None, *, url=URL):
     payload = json.dumps({"jsonrpc": "2.0", "id": 1, "method": method,
                           "params": params or []}).encode()
-    request = urllib.request.Request(URL, data=payload,
+    request = urllib.request.Request(url, data=payload,
                                      headers={"Content-Type": "application/json"})
     with urllib.request.urlopen(request, timeout=5) as response:
         result = json.load(response)
@@ -19,9 +19,9 @@ def rpc(method, params=None):
     return result["result"]
 
 
-def finalized_height():
-    head = rpc("chain_getFinalizedHead")
-    return int(rpc("chain_getHeader", [head])["number"], 16)
+def finalized_height(*, url=URL):
+    head = rpc("chain_getFinalizedHead", url=url)
+    return int(rpc("chain_getHeader", [head], url=url)["number"], 16)
 
 
 def main():

@@ -74,6 +74,16 @@ python3 scripts/check_rpc.py
 
 The check verifies network metadata and observes an increase in finalized height. It does not test payments, multiple-node agreement, adversarial consensus, or production safety. RPC remains on loopback. Keep forwarded ports private; browser-wallet integration is a later step. `--tmp` intentionally discards development state on exit. Stop the node with Ctrl+C, then stop the Codespace when finished.
 
+## Run the local two-validator testnet
+
+Stop any nodes using ports 9944 or 9945 with **Ctrl+C** in their terminals. Use the existing release binary from the repository.
+
+1. In **Terminal 1**, run `bash scripts/run-local-validator.sh alice` and wait for the RPC server message.
+2. In **Terminal 2**, run `bash scripts/run-local-validator.sh bob`. The script finds Alice's peer ID and uses it to connect Bob.
+3. In **Terminal 3**, run `python3 scripts/check-local-finality.py`. It checks both finalized block hashes, waits 20 seconds, and checks that finality advanced.
+
+In Codespaces the launch script uses `/workspaces/iink-local-alice` and `/workspaces/iink-local-bob`. It creates a network key only if that validator's key is missing. Use the same launch commands after a restart to keep each node's key and database. The check uses system Python. After starting both nodes, a `Pre-sealed block` line in each terminal shows that both are authoring blocks.
+
 ## Next evidence required
 
 1. Successful node and Wasm build with recorded resource consumption.
