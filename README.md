@@ -43,14 +43,14 @@ bash scripts/preflight.sh
 
 Full rebuild behavior and persistence are documented at https://docs.github.com/en/codespaces/developing-in-a-codespace/rebuilding-the-container-in-a-codespace . Setup consumes Codespaces time and storage from the account's allowance. Check remaining quota; this change does not select a paid machine or enable overages.
 
-If creation fails, share the first error from the creation log. If the 20 GiB disk policy still blocks the build after a full rebuild, collect these read-only measurements:
+If creation fails, share the first error from the creation log. If the build stops because of low disk space, collect these read-only measurements:
 
 ```bash
 df -h /workspaces/iink
 du -xhd1 /workspaces "$HOME/.cargo" "$HOME/.rustup" /var/cache/apt 2>/dev/null | sort -h
 ```
 
-Do not assume that removing the preflight check would make the build fit. The disk and memory thresholds are experiment policies, not validated hardware requirements. Actual free space must be measured after rebuilding.
+The preflight reports available space and allows starting below the 20 GiB estimate. The build samples free space in the workspace, Cargo cache, and target directory (including a target directory set through an environment variable). It stops the compiler when a sample reaches the 2 GiB reserve and preserves the log and intermediate files. Actual build size remains unmeasured.
 
 The Rust version remains an evaluation candidate from stable2503 SDK CI; node compilation has not yet been validated. The base image uses the Ubuntu `noble` tag rather than an immutable digest, so this is not yet a fully reproducible environment.
 
