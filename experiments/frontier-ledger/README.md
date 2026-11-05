@@ -51,5 +51,21 @@ accounts and total issuance at the finalized payment block. Each run
 uses fresh test keys.
 
 A successful run prints two `PASS` lines. Before any public testnet,
-also verify contracts on the shared ledger, the secure return path,
-replay protection, wallet denomination, and multi-node finality.
+also verify the contract check below, the secure return path, replay
+protection, wallet denomination, and multi-node finality.
+
+## Deploy and exercise a Solidity contract
+
+With the ledger node still running on port 9967, use the same Python
+environment and run this in the second terminal:
+
+```bash
+/workspaces/iink-frontier-client/bin/python scripts/check-frontier-ledger.py --counter
+```
+
+The check uses a native transfer to fund a fresh deployer. It deploys the
+same compiled Solidity counter from the isolated Frontier test and verifies
+the finalized bytecode, the initial value of 7, and the value of 8 after
+the increment. It also checks that both RPCs agree on the deployer's
+remaining spendable balance and that native issuance decreased by the
+gas fees for both transactions. Expect three `PASS` lines.
