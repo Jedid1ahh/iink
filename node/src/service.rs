@@ -63,6 +63,7 @@ const GRANDPA_JUSTIFICATION_PERIOD: u32 = 512;
 pub fn new_partial<B, RA, HF, BIQ>(
 	config: &Configuration,
 	eth_config: &EthConfiguration,
+	record_import_proof: bool,
 	build_import_queue: BIQ,
 ) -> Result<
 	PartialComponents<
@@ -109,12 +110,13 @@ where
 
 	let executor = sc_service::new_wasm_executor(&config.executor);
 
+	// Import must use the same proof recording as the block author.
 	let (client, backend, keystore_container, task_manager) =
 		sc_service::new_full_parts_record_import::<B, RA, _>(
 			config,
 			telemetry.as_ref().map(|(_, telemetry)| telemetry.handle()),
 			executor,
-			true,
+			record_import_proof,
 			Vec::new(),
 		)?;
 	let client = Arc::new(client);
@@ -312,7 +314,7 @@ where
 		select_chain,
 		transaction_pool,
 		other: (mut telemetry, block_import, grandpa_link, frontier_backend, storage_override),
-	} = new_partial(&config, &eth_config, build_import_queue)?;
+	} = new_partial(&config, &eth_config, sealing.is_some(), build_import_queue)?;
 
 	let FrontierPartialComponents {
 		filter_pool,
@@ -796,6 +798,7 @@ pub fn new_chain_ops(
 	} = new_partial::<Block, RuntimeApi, HostFunctions, _>(
 		config,
 		eth_config,
+		false,
 		build_aura_grandpa_import_queue,
 	)?;
 	Ok((client, backend, import_queue, task_manager, other.3))

@@ -43,5 +43,23 @@ checks in `scripts/check-development.sh`:
 | Ethereum-to-native return | The node rejected malformed calldata, attached value, and overspending. A valid return credited native Bob 1 IINK at finalized block 31. |
 | Replay protection | A valid return finalized at block 37. The node rejected the duplicate, reused nonce, and wrong-chain signatures. Balances, supply, and the sender nonce held through finalized block 38. |
 
-Multi-validator execution and restart recovery for this integrated build
-are the next validation milestone.
+## Two-validator agreement and restart recovery — 5 November 2026
+
+The published development candidate rejected a native payment block when a
+second validator replayed it. Block import recorded storage proofs while
+Aura authoring ran without a recorder. That difference affected runtime
+weight accounting and produced a different block digest. Aura authoring
+and import now both run without a recorder. Manual sealing keeps proof
+recording enabled. The locked release rebuild reproduced the same embedded
+Wasm hash.
+
+Alice and Bob ran the `local` chain spec with Ethereum chain ID 31340.
+The checks read both validators independently at finalized blocks.
+
+| Check | Observed result |
+| --- | --- |
+| Peering and finality | Distinct validator peer IDs, matching genesis, and matching finalized hashes as finality advanced from block 1 to 4. |
+| Native payment | Both nodes agreed on the finalized 1 IINK transfer, balances, and issuance at block 7. The check rejected an invalid signature, a duplicate submission, and a different transaction using the same nonce. |
+| Ethereum-to-native return | Both nodes agreed on the receipt, balances, fee burn, and issuance at block 13. |
+| Solidity counter | Both nodes agreed on deployment and increment receipts and gas accounting. Each read the value 8 at finalized block 19. |
+| Restart and catch-up | Bob stopped at block 19. With a non-voting observer connected, Alice included a native payment at block 23 while finality held at 19. Bob restarted with the same peer ID. Both validators finalized the payment and agreed on balances, issuance, and the historical Solidity state. Shared finality advanced to block 24. |
