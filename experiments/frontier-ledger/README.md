@@ -51,8 +51,8 @@ accounts and total issuance at the finalized payment block. Each run
 uses fresh test keys.
 
 A successful run prints two `PASS` lines. Before any public testnet,
-also verify the contract and native return checks below, replay
-protection, wallet denomination, and multi-node finality.
+also verify the contract, native return, and replay checks below, wallet
+denomination, and multi-node finality.
 
 ## Deploy and exercise a Solidity contract
 
@@ -93,3 +93,19 @@ attached Ethereum value, and an amount above the spendable balance
 all revert. It then verifies a 1 IINK credit to native Bob. At each
 finalized block it reconciles both accounts, the precompile balance,
 and the fee burn against total issuance. Expect five `PASS` lines.
+
+## Verify replay protection
+
+Keep the runtime v2 ledger node running on port 9967 and run:
+
+```bash
+/workspaces/iink-frontier-client/bin/python scripts/check-frontier-ledger.py --replay
+```
+
+The check funds a new Ethereum sender with 3 test IINK and finalizes one
+1 IINK return to native Bob. It then resubmits the exact signed bytes,
+signs a different return with the consumed nonce, and submits a return
+with the next nonce signed for a different chain ID. The last check
+waits for a later finalized block and confirms Bob received only one
+credit. It also verifies the sender balance, nonce, precompile balance,
+and total issuance. Expect six `PASS` lines.
