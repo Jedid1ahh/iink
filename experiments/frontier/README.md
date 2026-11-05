@@ -1,5 +1,10 @@
 # Frontier contract experiment
 
+This is the historical experiment. Use the
+[`experiment/frontier-shared-ledger` branch](https://github.com/Jedid1ahh/iink/tree/experiment/frontier-shared-ledger)
+for the commands below. The integrated release uses the root workspace and the
+commands in the repository README.
+
 Build the upstream Frontier standalone template and exercise a Solidity contract on an isolated development chain. The test sends two signed Ethereum transactions, waits for each receipt's block to finalize, and checks that the deployed counter changes from 7 to 8.
 
 ## Pinned inputs

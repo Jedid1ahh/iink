@@ -3,8 +3,18 @@
   "commit": "2610f22b838f65bfeec9791ede17827b74e1ac50",
   "commit_date": "2025-05-12",
   "sdk_line": "stable2503",
-  "status": "evaluation-only; not audited or compiled in this session",
+  "status": "Native starter baseline retained in repository history.",
   "rust_candidate": "1.84.1",
   "rust_basis": "https://github.com/paritytech/polkadot-sdk/blob/stable2503/.github/env",
-  "note": "Template HEAD is an older baseline. Assess supported SDK/Frontier versions and security advisories before selecting a production baseline. Cargo.lock is preserved."
+  "note": "Original native starter provenance. The integrated development release pins its dependency set below.",
+  "integrated_development": {
+    "frontier_repository": "https://github.com/polkadot-evm/frontier",
+    "frontier_commit": "baf505d8feeaaa0ba636a003faa49e4ad897b592",
+    "sdk_line": "stable2603",
+    "sdk_commit": "d3dfb281ee0f62c3b8bcda36c35c46f82f2d8878",
+    "evm_commit": "a656db9050c65170b050360c3fa66c0fd8bf226a",
+    "shared_ledger_experiment": "e743c3c5296c3bbc6b63ec55a9849484ddde523e",
+    "rust": "1.88.0",
+    "wasm_target": "wasm32v1-none"
+  }
 }

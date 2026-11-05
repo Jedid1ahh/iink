@@ -7,7 +7,7 @@ USER root
 RUN apt-get update \
     && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
        build-essential ca-certificates clang cmake curl git libclang-dev \
-       libssl-dev pkg-config protobuf-compiler python3 time \
+       libssl-dev pkg-config protobuf-compiler python3 python3-venv time \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 

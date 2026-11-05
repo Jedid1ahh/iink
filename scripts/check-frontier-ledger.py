@@ -13,9 +13,9 @@ from substrateinterface.utils.ss58 import ss58_encode
 from check_rpc import rpc
 from frontier_counter import exercise_counter
 
-HTTP_URL = "http://127.0.0.1:9967"
-WS_URL = "ws://127.0.0.1:9967"
-CHAIN_ID = 31_337
+HTTP_URL = "http://127.0.0.1:9944"
+WS_URL = "ws://127.0.0.1:9944"
+CHAIN_ID = 31_339
 UNIT = 10**12
 FUNDING = 2 * UNIT
 NATIVE_TRANSFER = "0x0000000000000000000000000000000000000800"
@@ -264,14 +264,14 @@ def main():
     args = parser.parse_args()
     properties = eth("system_properties")
     if (
-        eth("system_chain") != "IINK Shared Ledger Lab"
+        eth("system_chain") != "IINK Development"
         or int(eth("eth_chainId"), 16) != CHAIN_ID
         or properties.get("tokenSymbol") != "IINK"
         or properties.get("tokenDecimals") != 12
     ):
-        raise RuntimeError("Expected the IINK shared ledger development chain on port 9967.")
+        raise RuntimeError("Expected the integrated IINK development chain on port 9944.")
     if (args.native_return or args.replay) and eth("state_getRuntimeVersion")["specVersion"] < 2:
-        raise RuntimeError("The native return check needs the rebuilt shared-ledger node (runtime v2).")
+        raise RuntimeError("The native return and replay checks need IINK runtime v2 or later.")
 
     with SubstrateInterface(url=WS_URL) as node:
         reserve = node.get_constant("Balances", "ExistentialDeposit").value

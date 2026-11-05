@@ -9,14 +9,15 @@ case "$validator" in
   *) echo "Usage: bash scripts/run-local-validator.sh alice|bob" >&2; exit 2 ;;
 esac
 
-node=./target/release/solochain-template-node
+target_dir=${CARGO_TARGET_DIR:-${CARGO_BUILD_TARGET_DIR:-target}}
+node="$target_dir/release/iink-node"
 if [[ ! -x "$node" ]]; then
   echo "Node binary missing. Complete bash scripts/build.sh first." >&2
   exit 1
 fi
 
-base_path="$(dirname "$PWD")/iink-local-$validator"
-key_path="$base_path/chains/iink_local/network/secret_ed25519"
+base_path="$(dirname "$PWD")/iink-release-local-$validator"
+key_path="$base_path/chains/iink_release_local/network/secret_ed25519"
 bootnodes=()
 if [[ "$validator" == bob ]]; then
   if ! peer_id=$(cd scripts && python3 -c 'from check_rpc import rpc; print(rpc("system_localPeerId"))'); then

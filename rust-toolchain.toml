@@ -1,6 +1,5 @@
 [toolchain]
-# Candidate from Polkadot SDK stable2503 CI. Build compatibility is not yet verified.
-channel = "1.84.1"
+channel = "1.88.0"
 profile = "minimal"
-components = ["rust-src", "rustfmt", "clippy"]
-targets = ["wasm32-unknown-unknown"]
+components = ["rust-src"]
+targets = ["wasm32v1-none"]

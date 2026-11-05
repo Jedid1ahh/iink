@@ -17,7 +17,7 @@ for tool in git rustup cargo rustc clang cc make pkg-config protoc python3; do
   fi
 done
 if (( missing )); then
-  echo "In Codespaces: pull main, then use Codespaces: Rebuild Container and choose Full Rebuild." >&2
+  echo "In Codespaces: check out the development release, then use Codespaces: Rebuild Container and choose Full Rebuild." >&2
   echo "The project's development image installs these prerequisites automatically." >&2
 fi
 mem_kb=$(awk '/MemTotal:/ {print $2}' /proc/meminfo)

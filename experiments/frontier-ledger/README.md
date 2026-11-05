@@ -1,5 +1,10 @@
 # IINK shared ledger experiment
 
+This is the historical experiment. Use the
+[`experiment/frontier-shared-ledger` branch](https://github.com/Jedid1ahh/iink/tree/experiment/frontier-shared-ledger)
+for the commands below. The integrated release uses the root workspace and the
+commands in the repository README.
+
 The standalone Frontier counter test verified that two signed Ethereum
 transactions can deploy and update a Solidity contract. This lab adds the
 next integration check to the same pinned SDK and Frontier pair. It uses a

@@ -6,9 +6,14 @@ An independent Rust blockchain for payments and games, with very low native-toke
 
 ## Current development baseline
 
-This repository contains an evaluation-only standalone Polkadot SDK template with IINK development-network metadata. It retains the upstream development balances, native fees, Aura/GRANDPA implementation, and development administration. It does not implement EVM, Move, a production validator economy, or a public network.
+The integrated development release uses the pinned Frontier node and runtime with
+IINK's shared native balance ledger. Native and Ethereum transactions, Solidity
+contracts, and the native return precompile are exercised by the development
+checks. Both release chain specs start with fresh test-token genesis state.
 
-The original source commit and proposed toolchain are recorded in UPSTREAM.json. This baseline is not an assertion of current security support. Review SDK maintenance, advisories, and Frontier compatibility before further adoption. Move dialect remains unresolved; Aptos-style Move is a candidate only.
+The source revisions and Rust toolchain are recorded in `UPSTREAM.json`. Review
+SDK maintenance, advisories, and Frontier compatibility before selecting a
+production baseline. Aptos-style Move remains a candidate dialect.
 
 ## First milestone acceptance criteria
 

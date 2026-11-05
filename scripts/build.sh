@@ -14,12 +14,13 @@ mkdir -p artifacts
   df -h .
 } > artifacts/build-environment.txt
 # Keep memory pressure and debug artifact size down; preserve Cargo.lock.
-export CARGO_BUILD_JOBS=1
+export CARGO_BUILD_JOBS="${CARGO_BUILD_JOBS:-1}"
 export CARGO_INCREMENTAL=0
+export CARGO_NET_GIT_FETCH_WITH_CLI=true
 export CARGO_PROFILE_RELEASE_DEBUG=0
-build_command=(cargo build --locked --release --package solochain-template-node)
+build_command=(cargo build --locked --release --package iink-node)
 if [[ -x /usr/bin/time ]]; then
   build_command=(/usr/bin/time -v -o artifacts/build-resources.txt "${build_command[@]}")
 fi
 python3 scripts/guard-build-disk.py "${build_command[@]}" 2>&1 | tee artifacts/build.log
-echo "Build finished. The inherited binary name remains solochain-template-node."
+echo "Build finished. Run bash scripts/run-dev.sh to start IINK."

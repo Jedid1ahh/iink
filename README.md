@@ -1,120 +1,87 @@
-# IINK development starter
+# IINK integrated development release
 
-IINK is a proposed independent Rust blockchain for payments and games. Token display: **$IINK**; chain metadata symbol: **IINK**.
+IINK is an independent Rust blockchain project for payments and games. The
+development network uses **IINK** test tokens with 12 decimal places. The
+`iink-node` binary exposes native and Ethereum RPCs over one balance ledger.
+The runtime supports Solidity contracts and transfers between native and
+Ethereum accounts through the shared ledger.
 
-This starter adapts the official Polkadot SDK standalone template. It is source scaffolding, not a tested network release. The Rust node has **not been compiled or run** in this preparation session. EVM, Move, production staking, production token economics, and public deployment are not implemented here.
+The development chains use public test keys. Keep RPC and forwarded ports
+private and use test funds. The fresh development genesis uses Ethereum chain
+ID 31339 and the fresh local testnet uses 31340. Their chain and protocol
+identifiers keep their databases and peer networks separate from the native
+starter and the earlier Frontier lab.
 
-## Included
+## Build and run
 
-- Upstream node/runtime and development pallets, with the original dependency lockfile.
-- IINK development/local network names, distinct protocol identifiers, and test-token display metadata.
-- An Ubuntu 24.04 development image that installs the pinned Rust toolchain and native build dependencies automatically; blockchain compilation is started manually.
-- Build preflight, resource logging, local development launch, and RPC/finality smoke-check scripts.
-- Source provenance in `UPSTREAM.json` and the current project brief in `docs/PROJECT_SCOPE.md`.
-
-Upstream crate and binary names remain unchanged to keep the initial patch small. Development tokens use the inherited 12 decimal places. That display choice does not establish a production supply or fee schedule. The upstream default development accounts and privileged development key remain present and must never be used for real funds.
-
-## Open in GitHub Codespaces
-
-1. Open https://github.com/Jedid1ahh/iink and check your Codespaces usage and billing controls. Stay within your free quota and do not enable paid overages.
-2. Select **Code → Codespaces → Create codespace on main**. Source files are already in the repository; no ZIP upload is needed.
-3. Wait for the development image to install its dependencies and open. The creation log must finish successfully. The post-create check prints Rust and Protobuf versions. Blockchain compilation is started manually.
-4. Use the terminal inside Codespaces for the commands below. The development container requests at least two cores, 8 GB RAM, and 32 GB disk; these are starting resource requests, not a guarantee that the build will fit.
-
-Codespaces account eligibility, remaining quota, and billing controls have not been verified. No Codespace has been created by this repository setup.
-
-## Prepare or repair the Codespaces environment
-
-The image installs `rustup`, `cargo`, `rustc`, the Wasm target, `rust-src`, Clippy, rustfmt, and native packages including `protobuf-compiler`. Rust's version and component list are read from `rust-toolchain.toml`. There is no separate Yarn package repository to repair in this image.
-
-If your existing Codespace reports missing Rust tools or an unrelated Yarn signing-key error:
-
-1. Save files in `/workspaces/iink`. A rebuild preserves `/workspaces`, but other container-local installations and files can be lost; copy any files you need from elsewhere into the workspace first.
-2. Run `git pull --ff-only origin main`. If Git reports local changes or a conflict, preserve those changes and resolve it before rebuilding; do not use a hard reset.
-3. Press **Ctrl+Shift+P**, select **Codespaces: Rebuild Container**, then select **Full Rebuild**. This clears old image caches and applies the repository's new Dockerfile. Do not delete the Codespace.
-4. Wait for setup to finish, then run:
-
-```bash
-rustc --version
-cargo --version
-protoc --version
-bash scripts/preflight.sh
-```
-
-Full rebuild behavior and persistence are documented at https://docs.github.com/en/codespaces/developing-in-a-codespace/rebuilding-the-container-in-a-codespace . Setup consumes Codespaces time and storage from the account's allowance. Check remaining quota; this change does not select a paid machine or enable overages.
-
-If creation fails, share the first error from the creation log. If the build stops because of low disk space, collect these read-only measurements:
-
-```bash
-df -h /workspaces/iink
-du -xhd1 /workspaces "$HOME/.cargo" "$HOME/.rustup" /var/cache/apt 2>/dev/null | sort -h
-```
-
-The preflight reports available space and allows starting below the 20 GiB estimate. The build samples free space in the workspace, Cargo cache, and target directory (including a target directory set through an environment variable). It stops the compiler when a sample reaches the 2 GiB reserve and preserves the log and intermediate files. Actual build size remains unmeasured.
-
-The Rust version remains an evaluation candidate from stable2503 SDK CI; node compilation has not yet been validated. The base image uses the Ubuntu `noble` tag rather than an immutable digest, so this is not yet a fully reproducible environment.
-
-## Build and inspect
+Use the Linux development container or install the prerequisites from
+[`.devcontainer/Dockerfile`](.devcontainer/Dockerfile). Rust 1.88.0 and the
+`wasm32v1-none` target are declared in [`rust-toolchain.toml`](rust-toolchain.toml).
+In an existing Codespace, keep your files under `/workspaces` and use
+**Codespaces: Rebuild Container** if the pinned tools are missing.
 
 ```bash
 bash scripts/build.sh
-```
-
-This builds one node package with the original lockfile and one compilation job. Logs and available resource measurements go to `artifacts/`. Stop if resources or quota are insufficient; do not purchase capacity automatically. If the build succeeds, run:
-
-```bash
 bash scripts/run-dev.sh
 ```
 
-In a second terminal:
+The locked build embeds runtime Wasm and writes its log and resource
+measurements to `artifacts/`. It defaults to one build job to reduce memory
+pressure. The disk guard stops the build at its 2 GiB reserve. Monitor free disk
+and included Codespaces quota. To reuse a build cache, set the same absolute
+`CARGO_TARGET_DIR` for the build and launch. The development launch keeps RPC
+on loopback port 9944 and uses temporary chain state.
+
+## Verify the development release
+
+Leave the node running. In a second terminal, use your existing
+`/workspaces/iink-frontier-client` environment or set up a client:
 
 ```bash
-python3 scripts/check_rpc.py
+python3 -m venv /workspaces/iink-frontier-client
+/workspaces/iink-frontier-client/bin/python -m pip install --no-cache-dir \
+  eth-account==0.13.7 substrate-interface==1.8.1
 ```
 
-The check verifies network metadata and observes an increase in finalized height. It does not test payments, multiple-node agreement, adversarial consensus, or production safety. RPC remains on loopback. Keep forwarded ports private; browser-wallet integration is a later step. `--tmp` intentionally discards development state on exit. Stop the node with Ctrl+C, then stop the Codespace when finished.
-
-## Run the local two-validator testnet
-
-Stop any nodes using ports 9944 or 9945 with **Ctrl+C** in their terminals. Use the existing release binary from the repository.
-
-1. In **Terminal 1**, run `bash scripts/run-local-validator.sh alice` and wait for the RPC server message.
-2. In **Terminal 2**, run `bash scripts/run-local-validator.sh bob`. The script finds Alice's peer ID and uses it to connect Bob.
-3. In **Terminal 3**, run `python3 scripts/check-local-finality.py`. It checks both finalized block hashes, waits 20 seconds, and checks that finality advanced.
-
-In Codespaces the launch script uses `/workspaces/iink-local-alice` and `/workspaces/iink-local-bob`. It creates a network key only if that validator's key is missing. Use the same launch commands after a restart to keep each node's key and database. The check uses system Python. After starting both nodes, a `Pre-sealed block` line in each terminal shows that both are authoring blocks.
-
-## Check a payment on both validators
-
-Keep Alice and Bob running. Set up the Python client once from **Terminal 3**. The environment is stored under `/workspaces` so it can be reused.
+Run the checks sequentially on a quiet development node:
 
 ```bash
-python3 -m venv /workspaces/iink-payment-test &&
-/workspaces/iink-payment-test/bin/python -m pip install substrate-interface==1.8.1
+bash scripts/check-development.sh /workspaces/iink-frontier-client/bin/python
 ```
 
-If Python reports that `ensurepip` is missing, install `python3.12-venv` in the Codespace and repeat the setup. Then run:
+The checks cover finality, native funding of an Ethereum payment, Solidity
+deployment and calls, Ethereum-to-native transfers, rejection of malformed
+returns and replays, and fee and supply accounting at finalized blocks.
+The payment and contract checks use fresh test accounts.
+
+## Run two local validators
+
+Use a separate terminal for each validator. Free ports 9944 and 9945 before
+starting Alice and Bob.
 
 ```bash
-/workspaces/iink-payment-test/bin/python scripts/check-local-payment.py
+bash scripts/run-local-validator.sh alice
 ```
 
-Each run sends one test IINK from Alice to Bob on the local testnet. Run it while no other transactions are being submitted so the script can reconcile the exact balance and supply changes. It checks invalid signature and replay rejection, the burned fee, and agreement on the finalized payment across both nodes.
+When Alice's RPC is available, run this in the second terminal:
 
-## Next evidence required
+```bash
+bash scripts/run-local-validator.sh bob
+```
 
-1. Successful node and Wasm build with recorded resource consumption.
-2. RPC smoke check against the real compiled node.
-3. Native transfer, fee, signature, replay, and supply-accounting tests.
-4. A multi-node development network with agreement and restart checks.
-5. A supported SDK/Frontier compatibility baseline and a separate Move feasibility experiment.
+Then run `python3 scripts/check-local-finality.py` from a third terminal.
+The validator launchers save each node's data under
+`/workspaces/iink-release-local-alice` and `/workspaces/iink-release-local-bob`
+in Codespaces. Use the same launch commands to restart with the saved keys
+and databases. The existing `scripts/check-local-payment.py` checks a signed
+native transfer, replay protection, and fee accounting across both nodes.
 
-Move remains undecided. Aptos-style Move is only a candidate. The inherited SDK baseline is dated May 2025; it must be reviewed for maintenance and advisories before further adoption. No production security claim is made.
+## Source and scope
 
-## Cost and automation
-
-No automatic GitHub Actions workflows are active. Original workflow files are preserved as text in `docs/upstream-workflows/` because their automatic multi-platform builds are inappropriate for an unverified $0 account budget. No CI run has occurred. Check current provider allowances directly, preserve work in Git, and monitor storage even after stopping a codespace.
-
-## Provenance and licensing
-
-See `UPSTREAM.json`, `LICENSE`, the existing Cargo manifests, and `docs/UPSTREAM_README.md`. Original source and dependency notices are retained. Upstream manifest license declarations differ between workspace and node; review actual component licenses before distribution. This project is independent of Kraken's Ink chain and the ink! smart-contract language.
+The [source record](UPSTREAM.json) lists the exact Frontier, Polkadot SDK,
+and EVM revisions. The local node and runtime adapt Frontier's template
+with IINK's verified shared-ledger changes. Their manifests retain the
+upstream Unlicense declaration. Dependency licenses are recorded in their
+respective sources. See [the project scope](docs/PROJECT_SCOPE.md) and
+[validation notes](docs/VALIDATION.md) for development evidence and remaining
+work. The repository has no automatic build workflow.
