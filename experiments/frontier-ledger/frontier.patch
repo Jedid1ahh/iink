@@ -470,10 +470,18 @@ index b7597cd..9e00add 100644
 +	}
  }
 diff --git a/template/runtime/src/lib.rs b/template/runtime/src/lib.rs
-index 62be2a1..4d6e175 100644
+index 62be2a1..501e3de 100644
 --- a/template/runtime/src/lib.rs
 +++ b/template/runtime/src/lib.rs
-@@ -30,11 +30,12 @@ use sp_core::{
+@@ -9,6 +9,7 @@
+ extern crate alloc;
+ 
+ mod genesis_config_preset;
++mod native_transfer;
+ mod precompiles;
+ mod weights;
+ 
+@@ -30,11 +31,12 @@ use sp_core::{
  use sp_runtime::{
  	generic, impl_opaque_keys,
  	traits::{
@@ -489,7 +497,7 @@ index 62be2a1..4d6e175 100644
  };
  use sp_version::RuntimeVersion;
  // Substrate FRAME
-@@ -56,12 +57,12 @@ use pallet_transaction_payment::FungibleAdapter;
+@@ -56,12 +58,12 @@ use pallet_transaction_payment::FungibleAdapter;
  use polkadot_runtime_common::SlowAdjustingFeeUpdate;
  use sp_genesis_builder::PresetId;
  // Frontier
@@ -504,7 +512,7 @@ index 62be2a1..4d6e175 100644
  };
  
  // A few exports that help ease life for downstream crates.
-@@ -74,8 +75,8 @@ use precompiles::FrontierPrecompiles;
+@@ -74,8 +76,8 @@ use precompiles::FrontierPrecompiles;
  /// Type of block number.
  pub type BlockNumber = u32;
  
@@ -515,7 +523,7 @@ index 62be2a1..4d6e175 100644
  
  /// Some way of identifying an account on the chain. We intentionally make it equivalent
  /// to the public key of our transaction signing scheme.
-@@ -101,7 +102,7 @@ pub type Hashing = BlakeTwo256;
+@@ -101,7 +103,7 @@ pub type Hashing = BlakeTwo256;
  pub type DigestItem = generic::DigestItem;
  
  /// The address format for describing accounts.
@@ -524,7 +532,7 @@ index 62be2a1..4d6e175 100644
  
  /// Block header type as expected by this runtime.
  pub type Header = generic::Header<BlockNumber, BlakeTwo256>;
-@@ -183,8 +184,8 @@ pub mod opaque {
+@@ -183,10 +185,10 @@ pub mod opaque {
  
  #[sp_version::runtime_version]
  pub const VERSION: RuntimeVersion = RuntimeVersion {
@@ -533,9 +541,12 @@ index 62be2a1..4d6e175 100644
 +	spec_name: Cow::Borrowed("iink-ledger-lab"),
 +	impl_name: Cow::Borrowed("iink-ledger-lab"),
  	authoring_version: 1,
- 	spec_version: 1,
+-	spec_version: 1,
++	spec_version: 2,
  	impl_version: 1,
-@@ -241,7 +242,7 @@ impl frame_system::Config for Runtime {
+ 	apis: RUNTIME_API_VERSIONS,
+ 	transaction_version: 1,
+@@ -241,7 +243,7 @@ impl frame_system::Config for Runtime {
  	/// The identifier used to distinguish between accounts.
  	type AccountId = AccountId;
  	/// The lookup mechanism to get account ID from whatever is passed in dispatchers.
@@ -544,7 +555,7 @@ index 62be2a1..4d6e175 100644
  	/// The block type.
  	type Block = Block;
  	/// Maximum number of block number to block hash mappings to keep (oldest pruned first).
-@@ -300,7 +301,9 @@ impl pallet_timestamp::Config for Runtime {
+@@ -300,7 +302,9 @@ impl pallet_timestamp::Config for Runtime {
  	type WeightInfo = ();
  }
  
@@ -555,7 +566,7 @@ index 62be2a1..4d6e175 100644
  
  impl pallet_balances::Config for Runtime {
  	type RuntimeEvent = RuntimeEvent;
-@@ -374,9 +377,10 @@ impl pallet_evm::Config for Runtime {
+@@ -374,9 +378,10 @@ impl pallet_evm::Config for Runtime {
  	type GasWeightMapping = pallet_evm::FixedGasWeightMapping<Self>;
  	type WeightPerGas = WeightPerGas;
  	type BlockHashMapping = pallet_ethereum::EthereumBlockHashMapping<Self>;
@@ -569,7 +580,7 @@ index 62be2a1..4d6e175 100644
  	type Currency = Balances;
  	type PrecompilesType = FrontierPrecompiles<Self>;
  	type PrecompilesValue = PrecompilesValue;
-@@ -384,7 +388,7 @@ impl pallet_evm::Config for Runtime {
+@@ -384,7 +389,7 @@ impl pallet_evm::Config for Runtime {
  	type BlockGasLimit = BlockGasLimit;
  	type TransactionGasLimit = TransactionGasLimit;
  	type Runner = pallet_evm::runner::stack::Runner<Self>;
@@ -578,7 +589,7 @@ index 62be2a1..4d6e175 100644
  	type OnCreate = ();
  	type FindAuthor = FindAuthorTruncated<Aura>;
  	type GasLimitPovSizeRatio = GasLimitPovSizeRatio;
-@@ -416,7 +420,7 @@ impl pallet_dynamic_fee::Config for Runtime {
+@@ -416,7 +421,7 @@ impl pallet_dynamic_fee::Config for Runtime {
  }
  
  parameter_types! {
@@ -587,3 +598,149 @@ index 62be2a1..4d6e175 100644
  	pub DefaultElasticity: Permill = Permill::from_parts(125_000);
  }
  pub struct BaseFeeThreshold;
+diff --git a/template/runtime/src/native_transfer.rs b/template/runtime/src/native_transfer.rs
+new file mode 100644
+index 0000000..6a40918
+--- /dev/null
++++ b/template/runtime/src/native_transfer.rs
+@@ -0,0 +1,75 @@
++use fp_evm::{
++	ExitRevert, ExitSucceed, Precompile, PrecompileFailure, PrecompileHandle, PrecompileOutput,
++	PrecompileResult,
++};
++use frame_support::dispatch::GetDispatchInfo;
++use pallet_evm::{AddressMapping, GasWeightMapping};
++use sp_core::U256;
++use sp_runtime::traits::Dispatchable;
++
++use crate::{AccountId, BalancesCall, Runtime, RuntimeCall};
++
++// transferToNative(bytes32,uint128)
++const SELECTOR: [u8; 4] = [0xb1, 0xb0, 0x35, 0x9b];
++
++// The transfer can create one System.Account entry. Charge its key and value size
++// conservatively on every call, including transfers to existing accounts.
++const ACCOUNT_STORAGE_GROWTH: u64 = 256;
++
++pub struct NativeTransfer;
++
++impl Precompile for NativeTransfer {
++	fn execute(handle: &mut impl PrecompileHandle) -> PrecompileResult {
++		let context = handle.context();
++		if handle.is_static()
++			|| context.address != handle.code_address()
++			|| context.apparent_value != U256::zero()
++		{
++			return Err(revert());
++		}
++
++		let input = handle.input();
++		if input.len() != 68 || input[..4] != SELECTOR || input[36..52] != [0; 16] {
++			return Err(revert());
++		}
++		let dest: [u8; 32] = input[4..36].try_into().map_err(|_| revert())?;
++		let amount = u128::from_be_bytes(input[52..68].try_into().map_err(|_| revert())?);
++		if dest == [0; 32] || amount == 0 {
++			return Err(revert());
++		}
++
++		let source =
++			<Runtime as pallet_evm::Config>::AddressMapping::into_account_id(context.caller);
++		let dest = AccountId::from(dest);
++		if dest == source {
++			return Err(revert());
++		}
++		let call = RuntimeCall::Balances(BalancesCall::transfer_keep_alive {
++			dest: dest.into(),
++			value: amount,
++		});
++		let weight = call.get_dispatch_info().total_weight();
++		handle.record_cost(
++			<Runtime as pallet_evm::Config>::GasWeightMapping::weight_to_gas(weight),
++		)?;
++		handle.record_external_cost(
++			Some(weight.ref_time()),
++			Some(weight.proof_size()),
++			Some(ACCOUNT_STORAGE_GROWTH),
++		)?;
++		call.dispatch(frame_system::RawOrigin::Signed(source).into())
++			.map_err(|_| revert())?;
++
++		Ok(PrecompileOutput {
++			exit_status: ExitSucceed::Returned,
++			output: Default::default(),
++		})
++	}
++}
++
++fn revert() -> PrecompileFailure {
++	PrecompileFailure::Revert {
++		exit_status: ExitRevert::Reverted,
++		output: Default::default(),
++	}
++}
+diff --git a/template/runtime/src/precompiles.rs b/template/runtime/src/precompiles.rs
+index 730e581..262f14e 100644
+--- a/template/runtime/src/precompiles.rs
++++ b/template/runtime/src/precompiles.rs
+@@ -9,6 +9,8 @@ use pallet_evm_precompile_modexp::Modexp;
+ use pallet_evm_precompile_sha3fips::Sha3FIPS256;
+ use pallet_evm_precompile_simple::{ECRecover, ECRecoverPublicKey, Identity, Ripemd160, Sha256};
+ 
++use crate::{native_transfer::NativeTransfer, Runtime};
++
+ pub struct FrontierPrecompiles<R>(PhantomData<R>);
+ 
+ impl<R> FrontierPrecompiles<R>
+@@ -18,7 +20,7 @@ where
+ 	pub fn new() -> Self {
+ 		Self(Default::default())
+ 	}
+-	pub fn used_addresses() -> [H160; 9] {
++	pub fn used_addresses() -> [H160; 10] {
+ 		[
+ 			hash(1),
+ 			hash(2),
+@@ -29,13 +31,11 @@ where
+ 			hash(1025),
+ 			hash(1026),
+ 			hash(1027),
++			hash(2048),
+ 		]
+ 	}
+ }
+-impl<R> PrecompileSet for FrontierPrecompiles<R>
+-where
+-	R: pallet_evm::Config + frame_system::Config,
+-{
++impl PrecompileSet for FrontierPrecompiles<Runtime> {
+ 	fn execute(&self, handle: &mut impl PrecompileHandle) -> Option<PrecompileResult> {
+ 		match handle.code_address() {
+ 			// Ethereum precompiles :
+@@ -46,19 +46,20 @@ where
+ 			a if a == hash(5) => Some(Modexp::execute(handle)),
+ 			// Non-Frontier specific nor Ethereum precompiles :
+ 			a if a == hash(1024) => Some(Sha3FIPS256::<
+-				R,
+-				crate::weights::pallet_evm_precompile_sha3fips::WeightInfo<R>,
++				Runtime,
++				crate::weights::pallet_evm_precompile_sha3fips::WeightInfo<Runtime>,
+ 			>::execute(handle)),
+ 			a if a == hash(1025) => Some(ECRecoverPublicKey::execute(handle)),
+ 			// Curve25519 precompiles
+ 			a if a == hash(1026) => Some(curve25519_precompile::Curve25519Add::<
+-				R,
+-				crate::weights::pallet_evm_precompile_curve25519::WeightInfo<R>,
++				Runtime,
++				crate::weights::pallet_evm_precompile_curve25519::WeightInfo<Runtime>,
+ 			>::execute(handle)),
+ 			a if a == hash(1027) => Some(curve25519_precompile::Curve25519ScalarMul::<
+-				R,
+-				crate::weights::pallet_evm_precompile_curve25519::WeightInfo<R>,
++				Runtime,
++				crate::weights::pallet_evm_precompile_curve25519::WeightInfo<Runtime>,
+ 			>::execute(handle)),
++			a if a == hash(2048) => Some(NativeTransfer::execute(handle)),
+ 			_ => None,
+ 		}
+ 	}

@@ -13,7 +13,7 @@ fresh genesis with funded native Alice and Bob accounts.
   accounts it excludes the existential deposit.
 - Native EVM call and withdrawal entry points are disabled in this lab.
   Ethereum signatures authorize Ethereum transactions through Frontier.
-  A secure return path to ordinary native accounts is a separate test gate.
+  The lab return path is a single EVM precompile for native transfers.
 - The base fee is burned. The test uses a zero priority fee and checks
   the supply reduction against the finalized Ethereum receipt.
 
@@ -51,7 +51,7 @@ accounts and total issuance at the finalized payment block. Each run
 uses fresh test keys.
 
 A successful run prints two `PASS` lines. Before any public testnet,
-also verify the contract check below, the secure return path, replay
+also verify the contract and native return checks below, replay
 protection, wallet denomination, and multi-node finality.
 
 ## Deploy and exercise a Solidity contract
@@ -69,3 +69,27 @@ the finalized bytecode, the initial value of 7, and the value of 8 after
 the increment. It also checks that both RPCs agree on the deployer's
 remaining spendable balance and that native issuance decreased by the
 gas fees for both transactions. Expect three `PASS` lines.
+
+## Return IINK to a native account
+
+Rebuild and restart the ledger node to load runtime v2. The client
+command below uses the same Python environment as the other checks.
+
+```bash
+/workspaces/iink-frontier-client/bin/python scripts/check-frontier-ledger.py --return
+```
+
+The wallet signs an Ethereum transaction to
+`0x0000000000000000000000000000000000000800` with zero transaction value.
+The precompile accepts `transferToNative(bytes32,uint128)`, where the
+first argument is the raw 32-byte native account ID and the second is
+the amount in base units. For example, 1 IINK is `1000000000000` base
+units. The runtime derives the debit account from the EVM caller and
+charges for the native balance operation before dispatch. Static and
+delegated calls revert. The transfer keeps the caller's native account alive.
+
+The check funds a fresh sender and verifies that truncated calldata,
+attached Ethereum value, and an amount above the spendable balance
+all revert. It then verifies a 1 IINK credit to native Bob. At each
+finalized block it reconciles both accounts, the precompile balance,
+and the fee burn against total issuance. Expect five `PASS` lines.
