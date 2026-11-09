@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>IINK Payments</title>
+  <link rel="stylesheet" href="./styles.css">
+  <script type="module" src="./app.mjs"></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="wrap topbar-inner">
+      <span class="brand"><svg viewBox="0 0 32 32" width="32" height="32" aria-hidden="true"><path fill="currentColor" d="M3 3h26v26H3z"/><path fill="none" stroke="#ffdb9c" stroke-width="3" d="M11 23V9m10 14V9m-10 9 10-5"/></svg>IINK<span>Payments</span></span>
+      <span class="network"><span aria-hidden="true"></span>Local testnet</span>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <div class="intro">
+      <h1>Send IINK</h1>
+      <p>Send a test payment and follow it from your wallet to the finalized block.</p>
+    </div>
+
+    <div class="layout">
+      <section class="payment" aria-label="New payment">
+        <div class="wallet">
+          <div><span class="caption">Sending from</span><strong id="account">No wallet connected</strong></div>
+          <button type="button" class="secondary" id="connect">Connect MetaMask</button>
+        </div>
+        <p class="balance"><span>Spendable balance</span><strong id="balance">—</strong></p>
+        <form id="payment-form">
+          <label for="recipient">Recipient address</label>
+          <input id="recipient" type="text" placeholder="0x…" spellcheck="false" autocomplete="off" required>
+          <label for="amount">Amount</label>
+          <div class="amount-input">
+            <input id="amount" type="text" inputmode="decimal" placeholder="0.00" autocomplete="off" required>
+            <span aria-hidden="true">IINK</span>
+          </div>
+          <p id="message" class="message" role="status" aria-live="polite"></p>
+
+          <div id="quote" class="quote" hidden>
+            <dl>
+              <div><dt>Amount</dt><dd id="quote-amount"></dd></div>
+              <div><dt>Estimated fee</dt><dd id="quote-fee"></dd></div>
+              <div><dt>Estimated total</dt><dd id="quote-total"></dd></div>
+            </dl>
+            <p>Check the final quote in MetaMask before approving.</p>
+          </div>
+          <button type="submit" class="primary" id="submit" disabled>Review payment</button>
+        </form>
+      </section>
+
+      <aside class="receipt" aria-labelledby="receipt-heading">
+        <div class="receipt-title">
+          <h2 id="receipt-heading">Payment receipt</h2>
+          <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2V3Z"/><path d="M9 8h6m-6 4h6"/></svg>
+        </div>
+        <p id="receipt-status" role="status" aria-live="polite">Your payment status will appear here.</p>
+        <ol class="steps" aria-label="Payment progress">
+          <li id="step-submitted">Submitted to the network</li>
+          <li id="step-included">Included in a block</li>
+          <li id="step-finalized">Finalized by the chain</li>
+        </ol>
+        <dl id="receipt-data" hidden>
+          <div><dt>Block</dt><dd id="block"></dd></div>
+          <div><dt>Actual fee</dt><dd id="actual-fee"></dd></div>
+          <div class="hash"><dt>Transaction hash</dt><dd id="hash"></dd></div>
+        </dl>
+        <button id="copy-hash" class="copy" type="button" hidden>Copy hash</button>
+      </aside>
+    </div>
+    <footer><span>Test funds only</span><span>Chain 31342</span></footer>
+  </main>
+</body>
+</html>

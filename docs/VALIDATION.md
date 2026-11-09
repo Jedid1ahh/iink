@@ -99,3 +99,20 @@ Both validators finalized the 1 IINK payment at block 352. The verifier checked
 the receipt, balances, and issuance on each validator and recorded a burn of
 10,500,000,000,000,000 base units, equal to the displayed fee. The transaction hash
 was `0x9cdd8ef60f70b3d4c40f4546a4be947ee19cc7df0271b686533db4d00c1f5c4e`.
+
+## Payments dApp candidate — 9 November 2026
+
+The app was served on loopback and exercised with a browser DOM harness and
+a MetaMask-compatible test provider. The provider used MetaMask HD Keyring
+to sign a real EIP-1559 payment against two running IINK validators.
+
+The form connected the account, switched to chain 31342, displayed the spendable
+balance and fee estimate, handled a declined approval, and submitted an exact
+1 IINK payment after approval. The app marked the payment finalized at block 17
+and displayed the actual fee of 0.0105 IINK. The independent wallet verifier
+confirmed the same result on both validators. Additional checks covered decimal
+precision, a noncanonical receipt, a finalized revert, and the server's RPC
+method and origin restrictions.
+
+The first interactive dApp run with the MetaMask extension is pending. The
+README describes how to run the app and RPC through private localhost tunnels.

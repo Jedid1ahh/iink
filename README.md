@@ -121,6 +121,33 @@ The verifier waits for finality on both validators and checks the receipt,
 native and Ethereum balances, and fee burn. On a fresh recipient account,
 the 1 IINK credit leaves 0.999 spendable IINK.
 
+## Run the payments dApp
+
+Keep Alice and Bob running on the wallet testnet. The dApp uses the installed
+MetaMask extension for approval. The app server relays read-only requests to
+Alice for fee estimates and finalized receipts. Start it in a separate
+Codespace terminal.
+
+```bash
+python3 apps/payments/serve.py
+```
+
+Keep the private tunnel for port 9944 open. From a second terminal on your
+computer, forward port 8000 to the same Codespace.
+
+```bash
+gh codespace ports forward 8000:8000
+```
+
+Open `http://127.0.0.1:8000` in the browser that has MetaMask. Connect the
+wallet, select the funded test account, and enter a different Ethereum
+address and an amount. Review the estimated fee in the dApp, then check the
+amount and fee shown in MetaMask before approving. The receipt displays the
+transaction hash immediately and the actual fee once the payment finalizes.
+
+For a 1 IINK transfer, copy the receipt hash and use the wallet payment
+verifier above to reconcile it independently on both validators.
+
 ## Source and scope
 
 The [source record](UPSTREAM.json) lists the exact Frontier, Polkadot SDK,
