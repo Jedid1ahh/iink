@@ -89,7 +89,13 @@ Ethereum-to-native return all finalized. Malformed calldata, attached value,
 overspending, and all replay cases were rejected. The final check reconciled
 balances, issuance, and nonce through block 38.
 
-The MetaMask extension still needs an interactive check of network setup,
-balance display, fee confirmation, and signing in the browser. The workspace
-browser could not start an isolated extension profile. The README has the
-steps for running that check through a private localhost tunnel.
+### Interactive MetaMask verification — 9 November 2026
+
+The tester connected the MetaMask extension to chain 31342 through a private
+Codespaces tunnel and confirmed the funded IINK balance appeared. MetaMask
+displayed a 0.0105 IINK fee for the wallet test.
+
+Both validators finalized the 1 IINK payment at block 352. The verifier checked
+the receipt, balances, and issuance on each validator and recorded a burn of
+10,500,000,000,000,000 base units, equal to the displayed fee. The transaction hash
+was `0x9cdd8ef60f70b3d4c40f4546a4be947ee19cc7df0271b686533db4d00c1f5c4e`.
