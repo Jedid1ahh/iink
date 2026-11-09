@@ -5,7 +5,9 @@ import time
 from substrateinterface import Keypair, SubstrateInterface
 from substrateinterface.exceptions import SubstrateRequestException
 
-AMOUNT = 10**12  # 1 IINK
+from check_rpc import LOCAL_CHAIN_ID, UNIT, check_chain
+
+AMOUNT = UNIT  # 1 IINK
 
 
 def expect_rejection(node, transaction, label, reason, *, allow_duplicate=False):
@@ -46,11 +48,10 @@ def wait_for_peer(peer, block, height):
 
 
 def main():
+    for url in ("http://127.0.0.1:9944", "http://127.0.0.1:9945"):
+        check_chain(url, "IINK Local Testnet", LOCAL_CHAIN_ID)
     alice_node = SubstrateInterface(url="ws://127.0.0.1:9944")
     bob_node = SubstrateInterface(url="ws://127.0.0.1:9945")
-    for node in (alice_node, bob_node):
-        if node.chain != "IINK Local Testnet":
-            raise RuntimeError(f"Expected IINK Local Testnet, got {node.chain!r}.")
     if alice_node.get_block_hash(0) != bob_node.get_block_hash(0):
         raise RuntimeError("The validators have different genesis blocks.")
 

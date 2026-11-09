@@ -63,3 +63,33 @@ The checks read both validators independently at finalized blocks.
 | Ethereum-to-native return | Both nodes agreed on the receipt, balances, fee burn, and issuance at block 13. |
 | Solidity counter | Both nodes agreed on deployment and increment receipts and gas accounting. Each read the value 8 at finalized block 19. |
 | Restart and catch-up | Bob stopped at block 19. With a non-voting observer connected, Alice included a native payment at block 23 while finality held at 19. Bob restarted with the same peer ID. Both validators finalized the payment and agreed on balances, issuance, and the historical Solidity state. Shared finality advanced to block 24. |
+
+## Wallet compatibility candidate — 9 November 2026
+
+The network parameter validator shipped in MetaMask Chrome 13.56.0 returned
+JSON-RPC error `-32602` for a 12-decimal native currency and accepted the
+18-decimal IINK configuration. This check ran the shipped validator in
+isolation. [MetaMask Chrome release](https://github.com/MetaMask/metamask-extension/releases/tag/v13.56.0)
+
+The candidate uses new test chain IDs 31341 and 31342 with separate databases.
+Both chain specs serialized the exact genesis endowment of 1,000,000 IINK per
+funded account at 18 decimals. The optimized node and embedded Wasm built with
+the workspace lockfile and an external target directory.
+
+On chain 31342, native funding finalized at block 5. Ethereum RPC reported
+1.999 spendable IINK, a 21,000-gas transfer estimate, and populated fee history.
+MetaMask HD Keyring 15.0.1 signed a one-IINK EIP-1559 payment. Both validators
+finalized it at block 8 and agreed on the receipt, balances, total issuance,
+and the 0.0105 IINK fee burn. The native one-IINK payment also finalized on
+both validators at block 11. Invalid signature and replay checks passed.
+
+The full `scripts/check-development.sh` suite passed on chain 31341. Native
+funding, an Ethereum payment, Solidity deployment and increment, and an
+Ethereum-to-native return all finalized. Malformed calldata, attached value,
+overspending, and all replay cases were rejected. The final check reconciled
+balances, issuance, and nonce through block 38.
+
+The MetaMask extension still needs an interactive check of network setup,
+balance display, fee confirmation, and signing in the browser. The workspace
+browser could not start an isolated extension profile. The README has the
+steps for running that check through a private localhost tunnel.

@@ -52,7 +52,7 @@ use frame_support::{
 	genesis_builder_helper::build_state,
 	parameter_types,
 	traits::{ConstBool, ConstU32, ConstU64, ConstU8, FindAuthor, OnFinalize, OnTimestampSet},
-	weights::{constants::WEIGHT_REF_TIME_PER_MILLIS, IdentityFee, Weight},
+	weights::{constants::WEIGHT_REF_TIME_PER_MILLIS, ConstantMultiplier, Weight},
 };
 use pallet_transaction_payment::FungibleAdapter;
 use polkadot_runtime_common::SlowAdjustingFeeUpdate;
@@ -188,7 +188,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: Cow::Borrowed("iink-development"),
 	impl_name: Cow::Borrowed("iink-development"),
 	authoring_version: 1,
-	spec_version: 2,
+	spec_version: 3,
 	impl_version: 1,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -302,10 +302,15 @@ impl pallet_timestamp::Config for Runtime {
 	type WeightInfo = ();
 }
 
-pub const UNIT: Balance = 1_000_000_000_000;
+pub const TOKEN_DECIMALS: u32 = 18;
+pub const UNIT: Balance = 10u128.pow(TOKEN_DECIMALS);
 pub const EXISTENTIAL_DEPOSIT: Balance = UNIT / 1_000;
-pub const DEVELOPMENT_EVM_CHAIN_ID: u64 = 31_339;
-pub const LOCAL_EVM_CHAIN_ID: u64 = 31_340;
+pub const DEVELOPMENT_EVM_CHAIN_ID: u64 = 31_341;
+pub const LOCAL_EVM_CHAIN_ID: u64 = 31_342;
+
+// Preserve the existing whole-IINK fee scale on the new development chains.
+const BASE_UNIT_SCALE: Balance = UNIT / 1_000_000_000_000;
+type NativeFee = ConstantMultiplier<Balance, ConstU128<BASE_UNIT_SCALE>>;
 
 impl pallet_balances::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
@@ -327,8 +332,8 @@ impl pallet_balances::Config for Runtime {
 impl pallet_transaction_payment::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type OnChargeTransaction = FungibleAdapter<Balances, ()>;
-	type WeightToFee = IdentityFee<Balance>;
-	type LengthToFee = IdentityFee<Balance>;
+	type WeightToFee = NativeFee;
+	type LengthToFee = NativeFee;
 	/// Parameterized slow adjusting fee updated based on
 	/// <https://research.web3.foundation/Polkadot/overview/token-economics#2-slow-adjusting-mechanism>
 	type FeeMultiplierUpdate = SlowAdjustingFeeUpdate<Runtime>;
@@ -422,7 +427,7 @@ impl pallet_dynamic_fee::Config for Runtime {
 }
 
 parameter_types! {
-	pub DefaultBaseFeePerGas: U256 = U256::from(1_000_000);
+	pub DefaultBaseFeePerGas: U256 = U256::from(1_000_000 * BASE_UNIT_SCALE);
 	pub DefaultElasticity: Permill = Permill::from_parts(125_000);
 }
 pub struct BaseFeeThreshold;

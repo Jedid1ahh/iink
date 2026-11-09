@@ -18,6 +18,8 @@ export CARGO_BUILD_JOBS="${CARGO_BUILD_JOBS:-1}"
 export CARGO_INCREMENTAL=0
 export CARGO_NET_GIT_FETCH_WITH_CLI=true
 export CARGO_PROFILE_RELEASE_DEBUG=0
+# Keep the Wasm build locked when the target directory is outside the checkout.
+export WASM_BUILD_WORKSPACE_HINT="$PWD"
 build_command=(cargo build --locked --release --package iink-node)
 if [[ -x /usr/bin/time ]]; then
   build_command=(/usr/bin/time -v -o artifacts/build-resources.txt "${build_command[@]}")

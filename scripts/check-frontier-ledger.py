@@ -10,13 +10,13 @@ from substrateinterface import Keypair, SubstrateInterface
 from substrateinterface.exceptions import SubstrateRequestException
 from substrateinterface.utils.ss58 import ss58_encode
 
-from check_rpc import rpc
+from check_rpc import DEVELOPMENT_CHAIN_ID as CHAIN_ID, LOCAL_CHAIN_ID, UNIT, check_chain, rpc
 from frontier_counter import exercise_counter
 
 HTTP_URL = "http://127.0.0.1:9944"
 WS_URL = "ws://127.0.0.1:9944"
-CHAIN_ID = 31_339
-UNIT = 10**12
+PEER_HTTP_URL = "http://127.0.0.1:9945"
+PEER_WS_URL = "ws://127.0.0.1:9945"
 FUNDING = 2 * UNIT
 NATIVE_TRANSFER = "0x0000000000000000000000000000000000000800"
 
@@ -40,21 +40,21 @@ def snapshot(node, block, addresses):
     return balances, supply
 
 
-def check_evm_balance(address, height, expected):
-    actual = int(eth("eth_getBalance", [address, hex(height)]), 16)
+def check_evm_balance(address, height, expected, *, url=HTTP_URL):
+    actual = int(rpc("eth_getBalance", [address, hex(height)], url=url), 16)
     if actual != expected:
-        raise RuntimeError(f"EVM balance for {address} at block {height}: {actual}, expected {expected}.")
+        raise RuntimeError(f"EVM balance for {address} at block {height} on {url}: {actual}, expected {expected}.")
 
 
-def wait_for_receipt(node, tx_hash, expected_status):
+def wait_for_receipt(node, tx_hash, expected_status, *, url=HTTP_URL):
     deadline = time.monotonic() + 90
     while time.monotonic() < deadline:
-        receipt = eth("eth_getTransactionReceipt", [tx_hash])
+        receipt = rpc("eth_getTransactionReceipt", [tx_hash], url=url)
         if receipt:
             height = int(receipt["blockNumber"], 16)
             head = node.get_chain_finalised_head()
             if node.get_block_number(head) >= height:
-                block = eth("eth_getBlockByNumber", [hex(height), False])
+                block = rpc("eth_getBlockByNumber", [hex(height), False], url=url)
                 if block and block["hash"] == receipt["blockHash"]:
                     if receipt["status"] != expected_status:
                         raise RuntimeError(
@@ -255,21 +255,49 @@ def check_native_return(node, reserve, *, replay=False):
         print(f"PASS: Bob received exactly 1 IINK. Balances, supply, and nonce held through finalized block {height}.")
 
 
+def check_wallet_payment(node, peer, tx_hash, reserve):
+    receipt = wait_for_receipt(node, tx_hash, "0x1")
+    peer_receipt = wait_for_receipt(peer, tx_hash, "0x1", url=PEER_HTTP_URL)
+    tx = eth("eth_getTransactionByHash", [tx_hash])
+    if not tx or not tx["to"] or tx["input"] != "0x" or int(tx["value"], 16) != UNIT:
+        raise RuntimeError("Expected a wallet payment of exactly 1 IINK to an Ethereum address.")
+    if peer_receipt != receipt:
+        raise RuntimeError("The validators report different Ethereum receipts.")
+
+    accounts = (tx["from"], tx["to"])
+    addresses = tuple(native_address(address) for address in accounts)
+    if addresses[0] == addresses[1]:
+        raise RuntimeError("Use two different wallet accounts.")
+    height = int(receipt["blockNumber"], 16)
+    block = node.get_block_hash(height)
+    (sender, recipient), supply = snapshot(node, node.get_block_hash(height - 1), addresses)
+    fee = gas_fee(receipt)
+    expected = ((sender - UNIT - fee, recipient + UNIT), supply - fee)
+    for validator, url in ((node, HTTP_URL), (peer, PEER_HTTP_URL)):
+        if validator.get_block_hash(height) != block or snapshot(validator, block, addresses) != expected:
+            raise RuntimeError(f"Unexpected native payment accounting at block {height} on {url}.")
+        for account, balance in zip(accounts, expected[0]):
+            check_evm_balance(account, height, balance - reserve, url=url)
+    print(f"PASS: Both validators finalized the 1 IINK wallet payment at block {height}. Gas burned {fee} base units.")
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     checks = parser.add_mutually_exclusive_group()
     checks.add_argument("--counter", action="store_true", help="deploy and increment the Solidity counter")
     checks.add_argument("--return", dest="native_return", action="store_true", help="send IINK back to a native account")
     checks.add_argument("--replay", action="store_true", help="reject replay attempts against a finalized native return")
+    checks.add_argument("--fund-wallet", metavar="ADDRESS", help="fund an Ethereum test wallet on the two-validator local chain")
+    checks.add_argument("--wallet-payment", metavar="TX_HASH", help="verify a finalized 1 IINK wallet payment on both validators")
     args = parser.parse_args()
-    properties = eth("system_properties")
-    if (
-        eth("system_chain") != "IINK Development"
-        or int(eth("eth_chainId"), 16) != CHAIN_ID
-        or properties.get("tokenSymbol") != "IINK"
-        or properties.get("tokenDecimals") != 12
-    ):
-        raise RuntimeError("Expected the integrated IINK development chain on port 9944.")
+    wallet_check = args.fund_wallet is not None or args.wallet_payment is not None
+    if wallet_check:
+        for url in (HTTP_URL, PEER_HTTP_URL):
+            check_chain(url, "IINK Local Testnet", LOCAL_CHAIN_ID)
+        if rpc("chain_getBlockHash", [0]) != rpc("chain_getBlockHash", [0], url=PEER_HTTP_URL):
+            raise RuntimeError("The validators have different genesis blocks.")
+    else:
+        check_chain(HTTP_URL, "IINK Development", CHAIN_ID)
     if (args.native_return or args.replay) and eth("state_getRuntimeVersion")["specVersion"] < 2:
         raise RuntimeError("The native return and replay checks need IINK runtime v2 or later.")
 
@@ -277,7 +305,14 @@ def main():
         reserve = node.get_constant("Balances", "ExistentialDeposit").value
         if reserve != UNIT // 1_000:
             raise RuntimeError(f"Unexpected existential deposit: {reserve}.")
-        if args.counter:
+        if args.fund_wallet is not None:
+            wallet = to_checksum_address(args.fund_wallet)
+            block = fund_sender(node, native_address(wallet))
+            print(f"PASS: Funded {wallet} with 2 IINK at finalized block {node.get_block_number(block)}.")
+        elif args.wallet_payment is not None:
+            with SubstrateInterface(url=PEER_WS_URL) as peer:
+                check_wallet_payment(node, peer, args.wallet_payment, reserve)
+        elif args.counter:
             check_counter(node, reserve)
         elif args.native_return or args.replay:
             check_native_return(node, reserve, replay=args.replay)

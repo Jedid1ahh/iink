@@ -6,7 +6,8 @@ use sp_core::{sr25519, Pair, Public};
 use sp_runtime::traits::{IdentifyAccount, Verify};
 
 use iink_runtime::{
-	AccountId, SS58Prefix, Signature, DEVELOPMENT_EVM_CHAIN_ID, LOCAL_EVM_CHAIN_ID, UNIT, WASM_BINARY,
+	AccountId, SS58Prefix, Signature, DEVELOPMENT_EVM_CHAIN_ID, LOCAL_EVM_CHAIN_ID, TOKEN_DECIMALS,
+	UNIT, WASM_BINARY,
 };
 
 pub type ChainSpec = sc_service::GenericChainSpec;
@@ -36,7 +37,7 @@ fn authority_keys_from_seed(seed: &str) -> (AuraId, GrandpaId) {
 fn properties() -> Properties {
 	let mut properties = Properties::new();
 	properties.insert("tokenSymbol".into(), "IINK".into());
-	properties.insert("tokenDecimals".into(), 12.into());
+	properties.insert("tokenDecimals".into(), TOKEN_DECIMALS.into());
 	properties.insert("ss58Format".into(), SS58Prefix::get().into());
 	properties
 }
@@ -44,9 +45,9 @@ fn properties() -> Properties {
 pub fn development_config(enable_manual_seal: bool) -> ChainSpec {
 	ChainSpec::builder(WASM_BINARY.expect("WASM not available"), Default::default())
 		.with_name("IINK Development")
-		.with_id("iink_release_dev")
+		.with_id("iink_wallet_dev")
 		.with_chain_type(ChainType::Development)
-		.with_protocol_id("iink-release-dev")
+		.with_protocol_id("iink-wallet-dev")
 		.with_properties(properties())
 		.with_genesis_config_patch(testnet_genesis(
 			vec![authority_keys_from_seed("Alice")],
@@ -59,9 +60,9 @@ pub fn development_config(enable_manual_seal: bool) -> ChainSpec {
 pub fn local_testnet_config() -> ChainSpec {
 	ChainSpec::builder(WASM_BINARY.expect("WASM not available"), Default::default())
 		.with_name("IINK Local Testnet")
-		.with_id("iink_release_local")
+		.with_id("iink_wallet_local")
 		.with_chain_type(ChainType::Local)
-		.with_protocol_id("iink-release-local")
+		.with_protocol_id("iink-wallet-local")
 		.with_properties(properties())
 		.with_genesis_config_patch(testnet_genesis(
 			vec![

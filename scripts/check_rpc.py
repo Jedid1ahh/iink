@@ -5,6 +5,10 @@ import time
 import urllib.request
 
 URL = "http://127.0.0.1:9944"
+TOKEN_DECIMALS = 18
+UNIT = 10**TOKEN_DECIMALS
+DEVELOPMENT_CHAIN_ID = 31_341
+LOCAL_CHAIN_ID = 31_342
 
 
 def rpc(method, params=None, *, url=URL):
@@ -24,13 +28,20 @@ def finalized_height(*, url=URL):
     return int(rpc("chain_getHeader", [head], url=url)["number"], 16)
 
 
+def check_chain(url, name, chain_id):
+    chain = rpc("system_chain", url=url)
+    actual_id = int(rpc("eth_chainId", url=url), 16)
+    if chain != name or actual_id != chain_id:
+        raise RuntimeError(f"Expected {name} with chain ID {chain_id} at {url}, got {chain} with ID {actual_id}.")
+    properties = rpc("system_properties", url=url)
+    if properties.get("tokenSymbol") != "IINK" or properties.get("tokenDecimals") != TOKEN_DECIMALS:
+        raise RuntimeError(f"Unexpected token metadata at {url}: {properties!r}")
+    return properties
+
+
 def main():
-    chain = rpc("system_chain")
-    properties = rpc("system_properties")
-    if chain != "IINK Development":
-        raise RuntimeError(f"Unexpected chain: {chain!r}")
-    if properties.get("tokenSymbol") != "IINK" or properties.get("tokenDecimals") != 12:
-        raise RuntimeError(f"Unexpected development token metadata: {properties!r}")
+    chain = "IINK Development"
+    properties = check_chain(URL, chain, DEVELOPMENT_CHAIN_ID)
     first = finalized_height()
     deadline = time.monotonic() + 90
     while time.monotonic() < deadline:

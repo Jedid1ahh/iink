@@ -16,8 +16,8 @@ if [[ ! -x "$node" ]]; then
   exit 1
 fi
 
-base_path="$(dirname "$PWD")/iink-release-local-$validator"
-key_path="$base_path/chains/iink_release_local/network/secret_ed25519"
+base_path="$(dirname "$PWD")/iink-wallet-local-$validator"
+key_path="$base_path/chains/iink_wallet_local/network/secret_ed25519"
 bootnodes=()
 if [[ "$validator" == bob ]]; then
   if ! peer_id=$(cd scripts && python3 -c 'from check_rpc import rpc; print(rpc("system_localPeerId"))'); then
