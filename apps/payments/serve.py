@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Serve the IINK test payment UI and its fixed, read-only RPC route."""
+"""Serve the IINK test apps and their fixed, read-only RPC route."""
 
 import json
 from functools import partial
@@ -16,6 +16,8 @@ READ_METHODS = {
     "eth_estimateGas",
     "eth_gasPrice",
     "eth_getBalance",
+    "eth_getCode",
+    "eth_call",
     "eth_getTransactionReceipt",
     "eth_getBlockByNumber",
 }

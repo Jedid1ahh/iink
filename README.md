@@ -148,6 +148,22 @@ transaction hash immediately and the actual fee once the payment finalizes.
 For a 1 IINK transfer, copy the receipt hash and use the wallet payment
 verifier above to reconcile it independently on both validators.
 
+## Play Glimmer Run
+
+Start or restart the app server and keep both localhost tunnels from the
+payments dApp setup. Open `http://127.0.0.1:8000/game/`. Collect the three
+glimmers within eight moves using the arrow keys or the neighboring tiles.
+
+Connect a funded test shop account and choose **Deploy demo shop**. Approve
+the deployment in MetaMask and wait for it to finalize. Switch to a different
+funded test account and choose **Buy Courier Pass**. The price is 0.1 test
+IINK plus the network fee. The shop contract sends the price to the account
+that deployed it and records one pass per buyer.
+
+When the purchase finalizes, the game shows **Pass owned**. Choose **New run**
+and check that the move counter starts at 11. The game rechecks finalized
+ownership on reload and when you change wallets.
+
 ## Source and scope
 
 The [source record](UPSTREAM.json) lists the exact Frontier, Polkadot SDK,

@@ -76,5 +76,10 @@ export async function paymentStatus(hash, request = rpc) {
   if (receipt.status !== "0x0" && receipt.status !== "0x1") throw new Error("Receipt status unavailable.");
 
   const fee = receipt.effectiveGasPrice == null ? null : BigInt(receipt.gasUsed) * BigInt(receipt.effectiveGasPrice);
-  return { stage: receipt.status === "0x1" ? "finalized" : "reverted", block, fee };
+  return {
+    stage: receipt.status === "0x1" ? "finalized" : "reverted",
+    block,
+    fee,
+    contractAddress: receipt.contractAddress,
+  };
 }

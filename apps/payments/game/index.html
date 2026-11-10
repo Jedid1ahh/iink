@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Glimmer Run | IINK</title>
+  <link rel="stylesheet" href="./game.css">
+  <script type="module" src="./game.mjs"></script>
+</head>
+<body>
+  <header>
+    <a href="/" class="brand">IINK <span>Playtest</span></a>
+    <span class="network">Local testnet <b>31342</b></span>
+  </header>
+  <main>
+    <div class="intro">
+      <div>
+        <h1>Glimmer Run</h1>
+        <p>Pick a route through the ruins and collect all three glimmers.</p>
+      </div>
+      <button type="button" id="restart">New run</button>
+    </div>
+    <div class="layout">
+      <section class="arena" aria-labelledby="arena-title">
+        <div class="arena-bar">
+          <h2 id="arena-title">The ruins</h2>
+          <div class="counters" aria-live="polite" aria-atomic="true"><span><b id="moves">8</b> moves left</span><span><b id="glimmers">0</b> / 3 glimmers</span></div>
+        </div>
+        <div class="board" id="board" role="group" tabindex="0" aria-label="Five by five playfield" aria-describedby="controls"></div>
+        <p id="controls">Use arrow keys or tap a neighboring tile to move.</p>
+        <p id="run-status" role="status"></p>
+      </section>
+      <section class="shop" aria-labelledby="shop-title">
+        <div class="pass-art" aria-hidden="true">
+          <svg viewBox="0 0 136 100" width="136" height="100" fill="none">
+            <path d="M68 5 130 50 68 95 6 50 68 5Z" fill="#22445b" stroke="#5facab"/>
+            <path d="M68 14 117 50 68 86 19 50 68 14Z" fill="#15314d" stroke="#5facab"/>
+            <path d="m41 55 25-27-4 18h33L69 73l4-18H41Z" fill="#ffc378"/>
+            <path d="M15 18h13m-6-7v13m91 57h14m-7-7v14" stroke="#9cebdc" stroke-width="2"/>
+          </svg>
+        </div>
+        <h2 id="shop-title">Courier Pass</h2>
+        <p class="perk">Three extra moves per run.</p>
+        <p>The pass belongs to your wallet once the purchase finalizes.</p>
+        <div class="shop-details">
+          <div><span>Price</span><strong id="price">0.1 IINK</strong></div>
+          <div><span>Shop</span><strong id="shop-address">Awaiting deployment</strong></div>
+          <div><span>Wallet</span><strong id="account">Disconnected</strong></div>
+          <div><span>Pass</span><strong id="ownership">Connect to check</strong></div>
+        </div>
+        <button type="button" id="connect" class="quiet">Connect MetaMask</button>
+        <button type="button" id="deploy" hidden>Deploy demo shop</button>
+        <button type="button" id="buy" hidden>Buy Courier Pass</button>
+        <p id="shop-help" class="small">Deploy the shop from your test shop account. Then switch to a funded player account.</p>
+        <p id="shop-status" role="status"></p>
+        <dl class="receipt" id="receipt" hidden>
+          <div><dt>Finalized block</dt><dd id="receipt-block">—</dd></div>
+          <div><dt>Actual fee</dt><dd id="receipt-fee">—</dd></div>
+          <div class="address"><dt>Transaction hash</dt><dd id="receipt-hash"></dd></div>
+        </dl>
+      </section>
+    </div>
+    <footer>Local playtest. Test funds only.</footer>
+  </main>
+</body>
+</html>

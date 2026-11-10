@@ -1,7 +1,8 @@
 import {
-  RPC_URL, CHAIN_ID, CHAIN_NAME, formatIink, isHash, paymentRequest, paymentStatus,
+  CHAIN_ID, formatIink, isHash, paymentRequest, paymentStatus,
   quotePayment, rpc, verifyNetwork,
 } from "./payments.mjs";
+import { watchMetaMask, switchNetwork } from "./wallet.mjs";
 
 const byId = id => document.getElementById(id);
 const form = byId("payment-form");
@@ -84,36 +85,6 @@ function attachWallet(provider) {
   refreshIdentity().catch(error => { message.textContent = explain(error); });
 }
 
-window.addEventListener("eip6963:announceProvider", event => {
-  if (event.detail.info.rdns === "io.metamask") attachWallet(event.detail.provider);
-});
-window.dispatchEvent(new Event("eip6963:requestProvider"));
-
-function findMetaMask() {
-  const providers = window.ethereum?.providers ?? [window.ethereum];
-  const provider = providers.find(candidate => candidate?.isMetaMask);
-  if (provider) attachWallet(provider);
-}
-
-async function switchNetwork() {
-  const params = [{ chainId: CHAIN_ID }];
-  try {
-    await wallet.request({ method: "wallet_switchEthereumChain", params });
-  } catch (error) {
-    if (error.code !== 4902) throw error;
-    await wallet.request({
-      method: "wallet_addEthereumChain",
-      params: [{
-        chainId: CHAIN_ID, chainName: CHAIN_NAME, rpcUrls: [RPC_URL],
-        nativeCurrency: { name: "IINK", symbol: "IINK", decimals: 18 },
-      }],
-    });
-    if (await wallet.request({ method: "eth_chainId" }) !== CHAIN_ID) {
-      await wallet.request({ method: "wallet_switchEthereumChain", params });
-    }
-  }
-}
-
 connect.addEventListener("click", async () => {
   message.textContent = "";
   if (!wallet) findMetaMask();
@@ -126,7 +97,7 @@ connect.addEventListener("click", async () => {
   try {
     await verifyNetwork();
     const accounts = await wallet.request({ method: "eth_requestAccounts" });
-    if (accounts.length && await wallet.request({ method: "eth_chainId" }) !== CHAIN_ID) await switchNetwork();
+    if (accounts.length && await wallet.request({ method: "eth_chainId" }) !== CHAIN_ID) await switchNetwork(wallet);
     await refreshIdentity();
   } catch (error) {
     message.textContent = explain(error);
@@ -244,7 +215,7 @@ byId("copy-hash").addEventListener("click", async () => {
   }
 });
 
-findMetaMask();
+const findMetaMask = watchMetaMask(attachWallet);
 try {
   const pending = sessionStorage.getItem(storageKey);
   if (isHash(pending)) track(pending);

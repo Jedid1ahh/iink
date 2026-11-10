@@ -114,5 +114,34 @@ confirmed the same result on both validators. Additional checks covered decimal
 precision, a noncanonical receipt, a finalized revert, and the server's RPC
 method and origin restrictions.
 
-The first interactive dApp run with the MetaMask extension is pending. The
-README describes how to run the app and RPC through private localhost tunnels.
+### Interactive dApp verification — 9 November 2026
+
+The tester ran the dApp in Codespaces and submitted a 0.1 IINK test payment
+through the MetaMask extension. The dApp showed an estimated fee of 0.0105 IINK
+and an estimated total of 0.1105 IINK. The reported finalized receipt showed
+block 876 and an actual fee of 0.0105 IINK.
+
+Transaction hash `0x9ef76fbd1a7d806d3936115a4b410005c4c25e5f9258c7f012eab79479b43a63`.
+
+## Glimmer Run game demo
+
+An EVM and browser DOM harness completed the free eight-move route, deployed
+the shop, and purchased the Courier Pass for 0.1 IINK. The game kept the
+upgrade locked until the purchase finalized. The buyer started the next run
+with eleven moves and an unrelated account started with eight. Reloading
+recovered the shop and finalized ownership from the chain.
+
+The contract artifact reproduced from Solidity 0.8.30 with the Paris target
+and 200 optimizer runs. The checks reconciled the buyer debit and the shop
+account credit, rejected duplicate and incorrect-price purchases, and rolled
+back the pass and payment when the treasury rejected the payout. The existing
+payments dApp also finalized a transfer using the shared wallet helper.
+
+A locked release build started two IINK validators on chain 31342. The
+browser harness used MetaMask HD Keyring to sign the deployment and purchase.
+The shop deployed at finalized block 10. At block 13 both validators agreed
+on the purchase receipt, the buyer's finalized pass ownership, the 0.1 IINK
+credit to the shop account, and the 0.028167 IINK network fee. The game
+started an eight-move run before finality and an eleven-move run afterward.
+
+The interactive game test with the MetaMask extension in Codespaces is pending.
