@@ -144,4 +144,11 @@ on the purchase receipt, the buyer's finalized pass ownership, the 0.1 IINK
 credit to the shop account, and the 0.028167 IINK network fee. The game
 started an eight-move run before finality and an eleven-move run afterward.
 
-The interactive game test with the MetaMask extension in Codespaces is pending.
+### Interactive game verification — 10 November 2026
+
+The tester deployed the shop and purchased the 0.1 IINK Courier Pass through
+the MetaMask extension on the IINK local testnet. The game reported the
+purchase finalized at block 1372 with an actual network fee of 0.028167 IINK.
+The tester then selected New run and confirmed the counter showed 11 moves.
+
+Transaction hash `0xc3de18716ecc653f7cde65219a2d65eb0582886d3e0439ff279cc495806614d3`.
