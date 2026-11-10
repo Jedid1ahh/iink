@@ -1,6 +1,6 @@
+import { CHAIN_ID, CHAIN_NAME } from "./network.mjs";
+export { CHAIN_ID, CHAIN_NAME, NETWORK_KEY } from "./network.mjs";
 export const RPC_URL = "http://127.0.0.1:9944";
-export const CHAIN_ID = "0x7a6e"; // 31342
-export const CHAIN_NAME = "IINK Local Testnet";
 const UNIT = 10n ** 18n;
 const MAX_BALANCE = (1n << 128n) - 1n;
 
@@ -45,7 +45,7 @@ export async function rpc(method, params = []) {
 
 export async function verifyNetwork(request = rpc) {
   const [id, name] = await Promise.all([request("eth_chainId"), request("system_chain")]);
-  if (id !== CHAIN_ID || name !== CHAIN_NAME) throw new Error("The local RPC must serve IINK Local Testnet, chain 31342.");
+  if (id !== CHAIN_ID || name !== CHAIN_NAME) throw new Error(`The local RPC must serve ${CHAIN_NAME}, chain ${parseInt(CHAIN_ID, 16)}.`);
 }
 
 export async function quotePayment(transaction, request = rpc) {

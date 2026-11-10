@@ -1,5 +1,5 @@
 import {
-  CHAIN_ID, formatIink, isHash, paymentRequest, paymentStatus,
+  CHAIN_ID, CHAIN_NAME, NETWORK_KEY, formatIink, isHash, paymentRequest, paymentStatus,
   quotePayment, rpc, verifyNetwork,
 } from "./payments.mjs";
 import { watchMetaMask, switchNetwork } from "./wallet.mjs";
@@ -11,7 +11,9 @@ const submit = byId("submit");
 const recipient = byId("recipient");
 const amount = byId("amount");
 const message = byId("message");
-const storageKey = "iink-payments:31342:pending";
+const storageKey = `iink-payments:${NETWORK_KEY}:pending`;
+byId("network-name").textContent = CHAIN_NAME;
+byId("network-chain").textContent = `Chain ${parseInt(CHAIN_ID, 16)}`;
 let wallet;
 let account;
 let chain;

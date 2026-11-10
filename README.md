@@ -12,6 +12,11 @@ Ethereum chain ID 31341 and its two-validator local testnet uses 31342. Their
 chain and protocol identifiers separate them from the earlier 12-decimal
 development networks and Frontier lab. Each chain starts with fresh test funds.
 
+The next milestone is the [two-host private testnet rehearsal](docs/PRIVATE_TESTNET.md).
+Its scripts reuse the existing node executable, generate private validator
+keys, and create a separate chain with ID 31343. The two-host and recovery
+checks remain pending until that rehearsal is completed.
+
 ## Build and run
 
 Use the Linux development container or install the prerequisites from

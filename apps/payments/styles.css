@@ -26,7 +26,7 @@ button:focus-visible, input:focus-visible { outline: 3px solid #896439; outline-
 .brand { display: inline-flex; align-items: center; gap: .65rem; font-weight: 800; font-size: 1.15rem; }
 .brand span { color: var(--muted); font-size: .95rem; font-weight: 500; border-left: 1px solid var(--line); padding-left: .65rem; }
 .network { display: inline-flex; gap: .48rem; align-items: center; color: #3c5144; font-size: .86rem; white-space: nowrap; }
-.network span { width: .5rem; height: .5rem; border-radius: 50%; background: #426b55; }
+.network span[aria-hidden] { width: .5rem; height: .5rem; border-radius: 50%; background: #426b55; }
 .intro { margin-block: clamp(2.1rem, 6vw, 4.1rem) 1.7rem; }
 h1, h2 { font-family: Georgia, serif; font-weight: 500; }
 h1 { margin: 0; font-size: clamp(3rem, 9vw, 5.25rem); line-height: .98; letter-spacing: -.065em; }

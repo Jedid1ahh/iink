@@ -152,3 +152,31 @@ purchase finalized at block 1372 with an actual network fee of 0.028167 IINK.
 The tester then selected New run and confirmed the counter showed 11 moves.
 
 Transaction hash `0xc3de18716ecc653f7cde65219a2d65eb0582886d3e0439ff279cc495806614d3`.
+
+## Private testnet preparation — 10 November 2026
+
+Added private key preparation, genesis generation from public identities,
+persistent validator launchers, and a checker that retains a finalized
+checkpoint across restarts. The network uses chain ID 31343, fresh consensus
+keys, selected Ethereum wallet endowments, and disabled sudo. The same
+existing executable is required on both hosts. The Payments and game apps
+accept the private network configuration and isolate its saved browser state.
+
+Offline Python checks cover key retention and permissions, suppression of
+secret CLI diagnostics, genesis account mapping, duplicate host rejection,
+binary/spec checksums, loopback and reserved-peer launch settings, and saved
+finalized history. These checks simulate node CLI and RPC responses. They
+do not prove live consensus or physical host separation. The pinned SDK CLI
+source was inspected for key generation, file-based key insertion, node key
+inspection, and reserved-peer options.
+
+All 13 Python tests passed, including an actual loopback HTTP request for
+the private app configuration. The Node checks passed for both local and
+private chain selection, rejection of the wrong chain, MetaMask network
+parameters, and unchanged amount/fee formatting. Python and JavaScript
+syntax checks and `git diff --check` passed.
+
+Separate Codespaces operation, SSH routing, live genesis loading, transaction
+finality, restart recovery, and dApp behavior on chain 31343 remain pending
+the [two-host rehearsal](PRIVATE_TESTNET.md). No new Rust compilation or
+production/security audit was performed for this script-only change.

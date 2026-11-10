@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Serve the IINK test apps and their fixed, read-only RPC route."""
 
+import argparse
 import json
 from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
@@ -25,6 +26,22 @@ ORIGINS = {"http://127.0.0.1:8000", "http://localhost:8000"}
 
 
 class PaymentServer(SimpleHTTPRequestHandler):
+    network = None
+
+    def do_GET(self):
+        if self.path.split("?", 1)[0] == "/network.mjs" and self.network is not None:
+            response = (f"export const CHAIN_ID = {json.dumps(hex(self.network['chainId']))};\n"
+                        f"export const CHAIN_NAME = {json.dumps(self.network['name'])};\n"
+                        f"export const NETWORK_KEY = {json.dumps(str(self.network['chainId']) + ':' + self.network['chainSpecSha256'])};\n").encode()
+            self.send_response(200)
+            self.send_header("Content-Type", "text/javascript")
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("Content-Length", str(len(response)))
+            self.end_headers()
+            self.wfile.write(response)
+            return
+        super().do_GET()
+
     def do_POST(self):
         if self.path != "/rpc":
             self.send_error(404)
@@ -72,6 +89,17 @@ class PaymentServer(SimpleHTTPRequestHandler):
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--network", type=Path, help="public private-testnet network.json; default is IINK Local Testnet")
+    args = parser.parse_args()
+    if args.network:
+        network = json.loads(args.network.read_text())
+        if (network.get("schema") != 1 or network.get("chainId") != 31343
+                or network.get("name") != "IINK Private Testnet"
+                or not isinstance(network.get("chainSpecSha256"), str)
+                or len(network["chainSpecSha256"]) != 64):
+            parser.error("Expected a private-testnet network.json")
+        PaymentServer.network = network
     handler = partial(PaymentServer, directory=ROOT)
     with ThreadingHTTPServer(("127.0.0.1", 8000), handler) as server:
         print("IINK Payments is running at http://127.0.0.1:8000", flush=True)

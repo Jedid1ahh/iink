@@ -1,12 +1,13 @@
-import { CHAIN_ID, formatIink, isHash, paymentStatus, quotePayment, rpc, verifyNetwork } from "../payments.mjs";
+import { CHAIN_ID, CHAIN_NAME, NETWORK_KEY, formatIink, isHash, paymentStatus, quotePayment, rpc, verifyNetwork } from "../payments.mjs";
 import { switchNetwork, watchMetaMask } from "../wallet.mjs";
 import { canMove, move, SIZE, startRun, WALLS } from "./route.mjs";
 
 const byId = id => document.getElementById(id);
 const board = byId("board");
 const statusLine = byId("shop-status");
-const shopKey = "iink-game:31342:shop";
-const pendingKey = "iink-game:31342:pending";
+const shopKey = `iink-game:${NETWORK_KEY}:shop`;
+const pendingKey = `iink-game:${NETWORK_KEY}:pending`;
+byId("network-name").textContent = `${CHAIN_NAME} · ${parseInt(CHAIN_ID, 16)}`;
 const isAddress = value => typeof value === "string" && /^0x[\da-f]{40}$/i.test(value);
 const shorten = value => value.slice(0, 8) + "…" + value.slice(-6);
 const quantity = value => "0x" + value.toString(16);
