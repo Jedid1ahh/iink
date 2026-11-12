@@ -119,11 +119,38 @@ class PrivateTestnetTests(unittest.TestCase):
         self.assertEqual(spec["bootNodes"], [])
         self.assertEqual(genesis["sudo"], {"key": None})
         self.assertEqual(genesis["evmChainId"]["chainId"], 31343)
-        self.assertEqual(genesis["aura"]["authorities"], [private.read_json(root / "public.json")["aura"] for root in (a, b)])
-        self.assertEqual(len(genesis["balances"]["balances"]), 2)
-        self.assertTrue(all(balance == 1000 * 10**18 for _, balance in genesis["balances"]["balances"]))
-        wallet_account = "0x" + hashlib.blake2b(b"evm:" + bytes.fromhex("11" * 20), digest_size=32).hexdigest()
-        self.assertEqual(genesis["balances"]["balances"][0][0], wallet_account)
+        identities = [private.read_json(root / "public.json") for root in (a, b)]
+        self.assertEqual(genesis["aura"]["authorities"], [
+            private.ss58_address(bytes.fromhex(identity["aura"][2:])) for identity in identities
+        ])
+        self.assertEqual(genesis["grandpa"]["authorities"], [
+            [private.ss58_address(bytes.fromhex(identity["grandpa"][2:])), 1] for identity in identities
+        ])
+        self.assertEqual(genesis["balances"]["balances"], [
+            ["5DDYKUgyHe2Sx8a9oTZPAXrgFaTiGnYZXrecNdeC9bG7TbtX", 1_000 * 10**18],
+            ["5GVaUW618EZdBNMYinQfLCn5C9mMrgiohJwxHuRCepryhpYG", 1_000 * 10**18],
+        ])
+        private.network_file(output / "network.json")
+
+    def test_failed_genesis_build_can_retry_in_same_directory(self):
+        a, b = self.prepared("a"), self.prepared("b")
+        output = self.root / "public-network"
+        args = argparse.Namespace(node=str(self.node), a=a / "public.json", b=b / "public.json",
+                                  output=output, wallet=["0x" + "11" * 20, "0x" + "22" * 20])
+
+        def failed_build(node, *args):
+            if args[0] == "build-spec" and "--raw" in args:
+                raise RuntimeError("raw build failed")
+            return self.cli(node, *args)
+
+        with patch.object(private, "command", side_effect=failed_build):
+            with self.assertRaisesRegex(RuntimeError, "raw build failed"):
+                private.create(args)
+        self.assertFalse(output.exists())
+        self.assertEqual(list(self.root.glob(".public-network-*")), [])
+
+        output.mkdir()
+        private.create(args)
         private.network_file(output / "network.json")
 
     def test_refuses_same_host_or_binary_mismatch(self):
@@ -151,6 +178,10 @@ class PrivateTestnetTests(unittest.TestCase):
             with self.assertRaises(RuntimeError) as error:
                 real.command(self.node, "key", "generate")
         self.assertNotIn("secret seed", str(error.exception))
+        with patch.object(real.subprocess, "run", return_value=argparse.Namespace(
+                returncode=1, stderr="Invalid JSON blob: BadBase58", stdout="")):
+            with self.assertRaisesRegex(RuntimeError, "Invalid JSON blob: BadBase58"):
+                real.command(self.node, "build-spec", "--raw")
 
     def test_launcher_uses_private_ports_reserved_peers_and_persistent_state(self):
         output, a, _ = self.created()

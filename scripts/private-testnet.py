@@ -10,6 +10,7 @@ from pathlib import Path
 import re
 import socket
 import subprocess
+import tempfile
 import time
 
 from check_rpc import check_chain, finalized_height, rpc
@@ -42,8 +43,12 @@ def write_json(path, value):
 
 def command(node, *args):
     result = subprocess.run([str(node), *map(str, args)], capture_output=True, text=True)
-    # A failed key command may include secret material in its diagnostics.
-    require(result.returncode == 0, f"Node command {args[0]!r} failed (exit {result.returncode}).")
+    if result.returncode != 0:
+        message = f"Node command {args[0]!r} failed (exit {result.returncode})."
+        # The chain spec is public. Key commands can include secrets in diagnostics.
+        if args[0] == "build-spec" and result.stderr.strip():
+            message += "\n" + result.stderr.strip()
+        raise RuntimeError(message)
     return result.stdout
 
 
@@ -138,6 +143,19 @@ def verify_keys(node, root, identity):
     require(peer == identity["peerId"], "Stored network key does not match public.json.")
 
 
+def ss58_address(account_id):
+    # IINK uses the one-byte SS58 prefix 42 for its 32-byte account IDs and public keys.
+    payload = bytes([42]) + account_id
+    checksum = hashlib.blake2b(b"SS58PRE" + payload).digest()[:2]
+    number = int.from_bytes(payload + checksum, "big")
+    alphabet = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
+    digits = []
+    while number:
+        number, digit = divmod(number, 58)
+        digits.append(alphabet[digit])
+    return "".join(reversed(digits))
+
+
 def create(args):
     node = node_path(args.node)
     identities = [public_identity(path) for path in (args.a, args.b)]
@@ -147,30 +165,37 @@ def create(args):
     require(len(wallets) >= 2 and all(re.fullmatch(r"0x[0-9a-f]{40}", item) and int(item, 16) for item in wallets),
             "Provide at least two different public Ethereum wallet addresses using --wallet.")
     output = Path(args.output).resolve()
-    output.mkdir(parents=True, exist_ok=True)
-    require(not any(output.iterdir()), "Output directory must be empty; existing network files will not be replaced.")
+    require(not output.exists() or (output.is_dir() and not any(output.iterdir())),
+            "Output directory must be empty; existing network files will not be replaced.")
     spec = json.loads(command(node, "build-spec", "--chain", "local", "--disable-default-bootnode"))
     spec.update(name=CHAIN_NAME, id=SPEC_ID, chainType="Live", protocolId="iink-private-31343",
                 bootNodes=[], telemetryEndpoints=None)
     require(spec["properties"].get("tokenDecimals") == 18, "The binary must use 18-decimal IINK.")
     patch = spec["genesis"]["runtimeGenesis"]["patch"]
-    patch["aura"] = {"authorities": [item["aura"] for item in identities]}
-    patch["grandpa"] = {"authorities": [[item["grandpa"], 1] for item in identities]}
+    patch["aura"] = {"authorities": [ss58_address(bytes.fromhex(item["aura"][2:])) for item in identities]}
+    patch["grandpa"] = {"authorities": [
+        [ss58_address(bytes.fromhex(item["grandpa"][2:])), 1] for item in identities
+    ]}
     patch["evmChainId"] = {"chainId": CHAIN_ID}
     patch["manualSeal"] = {"enable": False}
     patch["sudo"] = {"key": None}
-    patch["balances"] = {"balances": [
-        ["0x" + hashlib.blake2b(b"evm:" + bytes.fromhex(wallet[2:]), digest_size=32).hexdigest(), 1_000 * 10**18]
-        for wallet in wallets
-    ]}
-    write_json(output / "plain-spec.json", spec)
-    raw = json.loads(command(node, "build-spec", "--chain", output / "plain-spec.json",
-                             "--raw", "--disable-default-bootnode"))
-    require("raw" in raw["genesis"], "Node did not produce a raw chain spec.")
-    write_json(output / "chain-spec.json", raw)
-    write_json(output / "network.json", {"schema": 1, "name": CHAIN_NAME, "chainId": CHAIN_ID,
-        "chainSpecSha256": digest(output / "chain-spec.json"), "binarySha256": digest(node),
-        "validators": identities, "wallets": wallets})
+    balances = []
+    for wallet in wallets:
+        account_id = hashlib.blake2b(b"evm:" + bytes.fromhex(wallet[2:]), digest_size=32).digest()
+        balances.append([ss58_address(account_id), 1_000 * 10**18])
+    patch["balances"] = {"balances": balances}
+    output.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(dir=output.parent, prefix=f".{output.name}-") as temporary:
+        staging = Path(temporary)
+        write_json(staging / "plain-spec.json", spec)
+        raw = json.loads(command(node, "build-spec", "--chain", staging / "plain-spec.json",
+                                 "--raw", "--disable-default-bootnode"))
+        require("raw" in raw["genesis"], "Node did not produce a raw chain spec.")
+        write_json(staging / "chain-spec.json", raw)
+        write_json(staging / "network.json", {"schema": 1, "name": CHAIN_NAME, "chainId": CHAIN_ID,
+            "chainSpecSha256": digest(staging / "chain-spec.json"), "binarySha256": digest(node),
+            "validators": identities, "wallets": wallets})
+        staging.rename(output)
     print(f"Created {output}. Copy this entire public directory to validator B.")
     print("Each listed wallet starts with 1,000 test IINK minus its 0.001 IINK account reserve. Sudo is disabled.")
 
