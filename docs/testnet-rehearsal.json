@@ -1,0 +1,38 @@
+{
+  "schema": 1,
+  "date": "2026-11-12",
+  "network": {
+    "name": "IINK Private Testnet",
+    "chainId": 31343,
+    "chainSpecSha256": "fd1c0d2fc70bf52b9fd36fd951b617387c903dd00f37b92a735b53b48d621bc5"
+  },
+  "source": {
+    "repository": "https://github.com/Jedid1ahh/iink",
+    "nodeBuildCommit": "4ac582102116d34f9ccfdf03c711f393b8bddc30",
+    "rehearsalCommit": "ea3a257b9958b6c30b0212942460ea0a5efa5e90",
+    "rustToolchain": "1.88.0"
+  },
+  "node": {
+    "version": "iink-node 0.0.0-4ac58210211",
+    "sha256": "a5b96710a77453ad68f93314226a359eb3fc198c11423368323d225b53ea5b10",
+    "platform": "x86_64 Linux"
+  },
+  "evidence": {
+    "distinctValidatorHosts": 2,
+    "initialFinalityProgress": { "from": 14, "to": 15 },
+    "tunnelRecovery": { "checkpointPreserved": 76, "from": 116, "to": 117 },
+    "validatorBRestart": { "reopenedAt": 441, "finalizedAtLeast": 565 },
+    "postRestartFinalityProgress": { "checkpointPreserved": 454, "from": 501, "to": 502 },
+    "payment": {
+      "amountTestIink": "0.1",
+      "finalizedBlock": 298,
+      "transactionHash": "0x8a039e2741eef4cf85d55310fe225cd4dabe69284f0039bb60b9318780af49d7"
+    },
+    "courierPass": {
+      "finalizedBlock": 437,
+      "transactionHash": "0x324c89c474ce257398b47f69561536983964f49ed40be54787a21ecebcc000c8",
+      "verifiedOnBothAfterRestart": true,
+      "movesAfterReload": 11
+    }
+  }
+}
